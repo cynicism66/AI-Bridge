@@ -1,0 +1,5 @@
+Bridge 是你和其他 AI（Claude / Codex）协作的公告板。所有工具都需要 project 参数：填当前项目根目录的绝对路径。
+建议流程：开始任务前调用 bridge_overview；改文件前 claim_files；每完成一步 update_status；完成后 release_files。
+看到对方留言要及时回复（send_message）。对方认领的文件不要改，先留言协商。
+Bridge 的开关由用户通过命令行控制，新项目默认未开启，另有全局总开关。
+收到“未开启”或“已关闭”的提示后，请忽略协作规则，正常工作；本次会话不要再调用 Bridge。

@@ -6,6 +6,8 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from .database import initialize
+
 TIME_FMT = "%Y-%m-%d %H:%M:%S"
 
 
@@ -28,28 +30,15 @@ def db(read_only=False):
         with conn:
             conn.row_factory = sqlite3.Row
             if not read_only:
-                conn.execute("PRAGMA journal_mode=WAL")
-                conn.executescript("""
-        CREATE TABLE IF NOT EXISTS status (
-            project TEXT, agent TEXT, task TEXT, progress TEXT, blockers TEXT, next_step TEXT,
-            updated_at TEXT, PRIMARY KEY (project, agent));
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, project TEXT, sender TEXT, recipient TEXT,
-            content TEXT, created_at TEXT);
-        CREATE TABLE IF NOT EXISTS reads (
-            message_id INTEGER, agent TEXT, PRIMARY KEY (message_id, agent));
-        CREATE TABLE IF NOT EXISTS claims (
-            project TEXT, path TEXT, agent TEXT, note TEXT, claimed_at TEXT, expires_at TEXT,
-            PRIMARY KEY (project, path));
-        CREATE TABLE IF NOT EXISTS settings (
-            scope TEXT PRIMARY KEY, enabled INTEGER NOT NULL);
-            """)
+                initialize(conn, path)
             yield conn
     finally:
         conn.close()
 
 
 def now():
+    if os.environ.get("BRIDGE_FAKE_NOW"):
+        return datetime.strptime(os.environ["BRIDGE_FAKE_NOW"], TIME_FMT).strftime(TIME_FMT)
     return datetime.now().strftime(TIME_FMT)
 
 

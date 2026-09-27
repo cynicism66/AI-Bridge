@@ -5,7 +5,9 @@
 **让 Claude 和 Codex 在同一个项目里知道彼此在做什么，让人也能参与协作。**
 
 AI Bridge（简称 Bridge）是一个共享状态、留言与文件认领的 MCP 服务器。
-数据按项目保存在本地 SQLite 中，支持 Python 3.10 及以上，运行时只使用 Python 标准库。
+数据按项目保存在本地 SQLite 中。现役 Python 版支持 Python 3.10 及以上，运行时只使用标准库；
+T04 新增行为兼容的 Rust 核心与 `bridge-mcp` 可执行文件，两个版本可以同时访问同一数据库。
+当前客户端仍使用 Python 入口，正式切换在 T05 进行。
 
 [项目仓库](https://github.com/cynicism66/AI-Bridge) · [协作规则](RULES.md) · [开发路线图](docs/PLAN.md)
 
@@ -122,6 +124,7 @@ Codex 配置字段见 [官方 MCP 文档](https://learn.chatgpt.com/docs/extend/
 | `bridge show [项目]` | 查看项目启用状态、各方状态、认领和最近 20 条消息 |
 | `bridge post [项目] "内容" [--to all\|claude\|codex]` | 以 `human` 身份发消息，默认广播 |
 | `bridge read [项目]` | 读取给 `human` 或 `all` 的未读消息，读后标记已读 |
+| `bridge history [项目] [--limit N] [--agent 身份] [--kind 类型]` | 按时间正序查看最近 50 条交互历史，包含全局开关事件 |
 | `bridge watch [项目] [--interval 秒]` | 首次显示公告板，之后仅在内容变化时输出；默认每 2 秒检查 |
 
 ```powershell
@@ -137,10 +140,26 @@ python D:\Bridge\bridge.py show | Select-Object -First 3
 `show`、`watch` 使用 `human` 身份但不标记已读；`read` 才会修改 human 的已读记录。
 AI 可用 `send_message` 并指定 `to="human"` 给你留言。控制台走文本输出，重定向的程序输出为 UTF-8。
 
+`history` 可筛选 `status`、`message`、`claim`、`release`、`expire`、`switch`。
+状态更新、留言、认领和续期、释放和到期清理、开关调整都会留下记录；目前不清理历史。
+关闭项目后也可查看历史。历史是人用命令，没有新增 AI 工具。
+
+```powershell
+python D:\Bridge\bridge.py history D:\code\example --limit 20
+python D:\Bridge\bridge.py history --agent codex --kind status
+```
+
+Windows 项目路径接受 `D:\code\example`、`D:/code/example`、UNC 路径和 Git Bash 的 `/d/code/example`。
+`/d/code/example` 会转换成 `d:/code/example`；`\example`、`/example`、`/abc/example` 等缺少盘符的路径会报错。
+命令行仍可使用 `.`、`..` 等相对路径；AI 工具必须提供明确的绝对路径。
+
 ## 数据库与身份
 
 - `BRIDGE_AGENT`：AI 身份，通常为 `claude` 或 `codex`，未设置时为 `unknown`；人用命令固定使用 `human`。
 - `BRIDGE_DB`：指定数据库路径，优先于默认路径；自定义路径的父目录需要预先存在。
+- `BRIDGE_FAKE_NOW`：**只用于测试**，格式 `YYYY-MM-DD HH:MM:SS`，控制业务时间和认领到期检查。
+  迁移 SQL 中开关、删除认领事件的时间与到期分类按任务书使用 SQLite 的 `datetime('now','localtime')`；
+  这些触发器使用系统本地时间。测试通过过去／未来时间构造到期场景，并归一化输出时间后比较。
 - 默认数据库：`Path.home() / ".bridge" / "bridge.db"`，写入时自动创建目录。
   Windows 上使用 `USERPROFILE`，不受自定义 `HOME` 影响。
 
@@ -154,6 +173,11 @@ python D:\Bridge\bridge.py status
 早期原型使用脚本同目录的 `bridge.db`，当前版本不自动搬迁旧数据。
 要继续使用旧库，请让两端和命令行显式指定相同的 `BRIDGE_DB`。
 公告板数据保存在本地；读取内容是否发送给模型服务，取决于 AI 客户端。
+
+数据库通过 `PRAGMA user_version` 管理版本。第一次写连接将 T03 的版本 0／1 数据库迁移到版本 2，
+保留原表数据，并把已有消息和当前状态导入事件表。两种实现共用 `src/bridge_mcp/migrations/` 中的 SQL。
+每个进程对同一路径只初始化一次；更高版本的数据库会被拒绝写入，并提示升级 Bridge。
+迁移在事务中完成，多个进程首次同时启动时会等待写锁，并对 WAL 切换进行有限重试。
 
 ## 项目内安装与测试
 
@@ -171,6 +195,32 @@ python -X dev -W error -m unittest discover -s tests -v
 激活 `.venv` 后可以直接使用 `bridge`。`setuptools` 仅用于构建安装包，运行时没有第三方依赖。
 测试使用标准库 `unittest` 和独立临时 `BRIDGE_DB`，不接触真实数据库。
 每次 push 和 pull_request 都会在 Windows／Linux × Python 3.10／3.14 上运行严格测试。
+
+### Rust 构建与一致性测试
+
+需要 stable Rust 工具链；Windows 使用 MSVC 工具链及 Visual Studio C++ 编译工具。
+Rust 支持 `on`、`off`、`status`、`show`、`post`、`read`、`history`；无参数启动 MCP，`watch` 仅保留在 Python 版。
+
+```powershell
+cargo --version
+cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo build --release -p bridge-mcp
+
+# 默认测试 Python；全套 Python unittest 也会自动包含这组黑盒测试
+python -X dev -W error -m unittest discover -s tests/conformance -t . -v
+
+# BRIDGE_CMD 是一个可执行文件路径，不是带参数的命令字符串
+$env:BRIDGE_CMD = (Resolve-Path .\target\release\bridge-mcp.exe).Path
+python -X dev -W error -m unittest discover -s tests/conformance -t . -v
+Remove-Item Env:BRIDGE_CMD
+```
+
+Linux 对应的二进制路径是 `target/release/bridge-mcp`。CI 另有 Windows／Linux 两个 Rust 任务，
+执行格式检查、Clippy、单元测试、release 构建及上述黑盒测试（包含 Python/Rust 双向数据库互通）。
+`tests/conformance/golden/` 来自 Python MCP 子进程的真实响应；工具清单按规范化 JSON 比较，说明文本全文比较，
+其他输出仅替换时间后逐字比较。测试只使用临时数据库，不读取用户数据。
 
 ## 七个 AI 工具
 
@@ -216,7 +266,13 @@ python -X dev -W error -m unittest discover -s tests -v
 - `server.py`：JSON-RPC 协议及 UTF-8 stdio。
 - `tools.py`：工具定义、开关拦截与中文格式化。
 - `store.py`：SQLite 连接、业务数据及开关设置。
+- `database.py` / `migrations/`：数据库初始化和共享版本迁移。
+- `history.py`：交互历史查询和中文格式化。
 - `paths.py`：项目和文件路径规范化。
+
+Rust 工作区中，`crates/bridge-core/` 提供数据库、路径、七个工具及中文格式化，
+`crates/bridge-mcp/` 负责 stdio 和命令行。核心库不向终端输出，后续桌面软件可直接调用。
+协议说明的 Rust 静态资源来自 Python 黄金响应，变更协议时须同步验证两端。
 
 包与 MCP 版本统一使用 `bridge_mcp.__version__`（当前 `0.1.0`）。
 后续计划见 [路线图](docs/PLAN.md)，问题和建议请提交到 [GitHub Issues](https://github.com/cynicism66/AI-Bridge/issues)。

@@ -21,3 +21,30 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: 运行标准库测试
         run: python -X dev -W error -m unittest discover -s tests -v
+
+  rust:
+    name: ${{ matrix.os }} / Rust stable
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: 安装 Rust stable
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - name: 使用 stable
+        run: rustup default stable
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo build --release -p bridge-mcp
+      - name: Rust 黑盒一致性测试（含 Python 双向互通）
+        shell: pwsh
+        run: |
+          $suffix = if ($IsWindows) { '.exe' } else { '' }
+          $env:BRIDGE_CMD = Join-Path $PWD "target/release/bridge-mcp$suffix"
+          python -X dev -W error -m unittest discover -s tests/conformance -t . -v

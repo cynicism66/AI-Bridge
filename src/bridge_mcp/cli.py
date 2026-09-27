@@ -6,7 +6,8 @@ import os
 import time
 
 from . import output, store
-from .paths import norm_project
+from .paths import explicit_project, norm_project
+from .history import history_text
 from .server import serve
 from .tools import fmt_msg, show_text
 
@@ -36,7 +37,8 @@ def parser():
         command.add_argument("--global", dest="global_switch", action="store_true", help="设置全局总开关")
     commands.add_parser("status", help="显示全局开关及所有项目状态")
     for name, help_text in [("show", "查看公告板"), ("read", "读取给 human 的未读消息"),
-                            ("watch", "持续显示公告板变化"), ("post", "以 human 身份发消息")]:
+                            ("watch", "持续显示公告板变化"), ("post", "以 human 身份发消息"),
+                            ("history", "查看项目交互历史")]:
         command = commands.add_parser(name, help=help_text)
         command.add_argument("project", nargs="?", help="项目目录，默认当前目录")
         if name == "post":
@@ -44,6 +46,10 @@ def parser():
             command.add_argument("--to", choices=("all", "claude", "codex"), default="all", help="收件人，默认 all")
         elif name == "watch":
             command.add_argument("--interval", type=interval, default=2.0, help="检查间隔秒数，默认 2")
+        elif name == "history":
+            command.add_argument("--limit", type=int, default=50, help="最近的条数，默认 50")
+            command.add_argument("--agent", help="只显示指定身份")
+            command.add_argument("--kind", choices=("status", "message", "claim", "release", "expire", "switch"))
     return root
 
 
@@ -97,7 +103,7 @@ def run(args, root):
         state = store.switch_state()
         output.write(notice(state, project=False) + f"全局开关：{'已开启' if state['global_enabled'] else '已关闭'}")
         return
-    directory = os.path.abspath(args.project if args.project is not None else os.getcwd())
+    directory = os.path.abspath(explicit_project(args.project if args.project is not None else os.getcwd()))
     project = norm_project(directory)
     if args.command in ("on", "off"):
         store.set_enabled(args.command == "on", project)
@@ -120,6 +126,10 @@ def run(args, root):
         output.write(prefix + (text if rows else "没有未读消息。"))
     elif args.command == "watch":
         watch(project, args.interval)
+    elif args.command == "history":
+        if args.limit < 0:
+            root.error("limit 不能小于 0")
+        output.write(history_text(project, args.limit, args.agent, args.kind))
 
 
 def main(argv=None):
@@ -134,3 +144,5 @@ def main(argv=None):
         output.silence_broken_pipe()
     except KeyboardInterrupt:
         pass
+    except ValueError as error:
+        root.error(str(error))
