@@ -5,10 +5,14 @@ from threading import Barrier
 
 from tests.support import DatabaseTestCase
 from bridge_mcp import store
+from bridge_mcp.paths import norm_project
 
 
 class ConcurrencyTests(DatabaseTestCase):
     def test_two_agents_each_write_fifty_statuses_and_messages(self):
+        # T03：项目由用户先开启，再由两个 AI 同时使用；开启时完成建库。
+        self.project = norm_project(self.project)
+        store.set_enabled(True, self.project)
         start = Barrier(2)
 
         def write(agent):

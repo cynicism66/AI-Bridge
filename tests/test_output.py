@@ -31,6 +31,7 @@ class OutputTests(DatabaseTestCase):
                 with self.subTest(stage=stage, error=error):
                     stream = Mock()
                     stream.isatty.return_value = False
+                    stream.fileno.return_value = 1
                     getattr(stream.buffer, stage).side_effect = error
                     with patch.object(sys, "stdout", stream), patch.object(output, "silence_broken_pipe") as silence:
                         cli.main(["show", self.project])
