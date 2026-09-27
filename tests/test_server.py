@@ -11,6 +11,10 @@ from bridge_mcp import __version__, server, store, tools
 
 
 class ServerTests(DatabaseTestCase):
+    def setUp(self):
+        super().setUp()
+        store.set_enabled(True, tools.norm_project(self.project))
+
     def exchange(self, payload):
         with io.BytesIO(payload) as incoming, io.BytesIO() as outgoing:
             with patch.object(server.sys, "stdin", SimpleNamespace(buffer=incoming)), patch.object(
@@ -61,7 +65,7 @@ class ServerTests(DatabaseTestCase):
         result = self.call("update_status", project="src", task="任务")
         self.assertTrue(result["isError"])
         self.assertIn("项目根目录的绝对路径", result["content"][0]["text"])
-        self.assertEqual(store.list_projects(), [])
+        self.assertEqual(store.overview(tools.norm_project(self.project), "codex")["statuses"], [])
 
     def test_notifications_do_not_reply_or_dispatch(self):
         notifications = [
@@ -72,7 +76,7 @@ class ServerTests(DatabaseTestCase):
         ]
         payload = b"\n".join(json.dumps(item).encode("utf-8") for item in notifications) + b"\n"
         self.assertEqual(self.exchange(payload), [])
-        self.assertEqual(store.list_projects(), [])
+        self.assertEqual(store.overview(tools.norm_project(self.project), "codex")["statuses"], [])
 
     def test_invalid_json_returns_parse_error_and_server_continues(self):
         responses = self.exchange(b'\n{broken json}\n{"jsonrpc":"2.0","id":2,"method":"ping"}\n')
@@ -132,11 +136,12 @@ class ServerTests(DatabaseTestCase):
             self.assertIn("你的身份：human", tools.show_text(self.project))
 
     def test_empty_and_recent_message_texts_and_project_list(self):
-        self.assertEqual(self.text("list_projects"), "还没有项目使用过 Bridge。")
+        with patch.dict(os.environ, {"BRIDGE_DB": str(self.directory / "empty.db")}):
+            self.assertEqual(self.text("list_projects"), "还没有项目使用过 Bridge。")
         self.assertEqual(self.text("read_messages", include_read=True), "还没有任何消息。")
         with patch.object(store, "now", return_value="2026-01-01 09:00:00"):
             self.assertEqual(self.text("send_message", content="广播"), "消息 #1 已发送给 所有人。")
         self.assertEqual(self.text("read_messages", include_read=True),
                          "最近的消息：\n  #1 [2026-01-01 09:00:00] codex → 所有人：广播")
         self.assertEqual(self.text("list_projects"),
-                         f"用过 Bridge 的项目：\n  {tools.norm_project(self.project)}（最近活动 2026-01-01 09:00:00）")
+                         f"用过 Bridge 的项目：\n  {tools.norm_project(self.project)}（最近活动 2026-01-01 09:00:00，已开启）")

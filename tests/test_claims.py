@@ -50,6 +50,7 @@ class ClaimTests(DatabaseTestCase):
 
     def test_tool_omitting_files_releases_all_owned_claims(self):
         project = tools.norm_project(self.project)
+        store.set_enabled(True, project)
         store.claim_files(project, "claude", ["a.py"], 60)
         store.claim_files(project, "codex", ["b.py", "c.py"], 60)
         with patch.dict(os.environ, {"BRIDGE_AGENT": "codex"}):

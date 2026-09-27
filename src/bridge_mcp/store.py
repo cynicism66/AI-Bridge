@@ -9,23 +9,27 @@ from pathlib import Path
 TIME_FMT = "%Y-%m-%d %H:%M:%S"
 
 
-def db_path():
+def db_path(create=True):
     custom = os.environ.get("BRIDGE_DB")
     if custom:
         return Path(custom)
     path = Path.home() / ".bridge" / "bridge.db"
-    path.parent.mkdir(parents=True, exist_ok=True)
+    if create:
+        path.parent.mkdir(parents=True, exist_ok=True)
     return path
 
 
 @contextmanager
-def db():
-    conn = sqlite3.connect(db_path(), timeout=15)
+def db(read_only=False):
+    path = db_path(create=not read_only)
+    conn = (sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=15)
+            if read_only else sqlite3.connect(path, timeout=15))
     try:
         with conn:
             conn.row_factory = sqlite3.Row
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.executescript("""
+            if not read_only:
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.executescript("""
         CREATE TABLE IF NOT EXISTS status (
             project TEXT, agent TEXT, task TEXT, progress TEXT, blockers TEXT, next_step TEXT,
             updated_at TEXT, PRIMARY KEY (project, agent));
@@ -37,6 +41,8 @@ def db():
         CREATE TABLE IF NOT EXISTS claims (
             project TEXT, path TEXT, agent TEXT, note TEXT, claimed_at TEXT, expires_at TEXT,
             PRIMARY KEY (project, path));
+        CREATE TABLE IF NOT EXISTS settings (
+            scope TEXT PRIMARY KEY, enabled INTEGER NOT NULL);
             """)
             yield conn
     finally:
@@ -134,9 +140,11 @@ def list_projects():
             SELECT project, MAX(t) AS last FROM (
                 SELECT project, updated_at AS t FROM status
                 UNION ALL SELECT project, created_at FROM messages
-                UNION ALL SELECT project, claimed_at FROM claims)
+                UNION ALL SELECT project, claimed_at FROM claims
+                UNION ALL SELECT scope, NULL FROM settings WHERE scope != 'global')
             GROUP BY project ORDER BY last DESC""").fetchall()
-    return [dict(r) for r in rows]
+        settings = dict(conn.execute("SELECT scope, enabled FROM settings"))
+    return [{**dict(r), "enabled": bool(settings.get(r["project"], False))} for r in rows]
 
 
 def recent_messages(project):
@@ -144,3 +152,23 @@ def recent_messages(project):
         rows = conn.execute("SELECT * FROM (SELECT * FROM messages WHERE project = ? ORDER BY id DESC LIMIT 20) ORDER BY id",
                             (project,)).fetchall()
     return [dict(r) for r in rows]
+
+
+def switch_state(project=None):
+    settings = {}
+    # 默认关闭时不创建数据库或表；已有数据库只读设置，不访问业务表。
+    if db_path(create=False).is_file():
+        with db(read_only=True) as conn:
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='settings'").fetchone():
+                scopes = ("global", project) if project is not None else ("global", "global")
+                settings = dict(conn.execute("SELECT scope, enabled FROM settings WHERE scope IN (?, ?)", scopes))
+    global_enabled = bool(settings.get("global", True))
+    project_enabled = bool(settings.get(project, False))
+    return {"global_enabled": global_enabled, "project_enabled": project_enabled,
+            "enabled": global_enabled and project_enabled}
+
+
+def set_enabled(enabled, project=None):
+    with db() as conn:
+        conn.execute("INSERT OR REPLACE INTO settings VALUES (?, ?)",
+                     ("global" if project is None else project, int(enabled)))

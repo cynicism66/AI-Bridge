@@ -1,6 +1,7 @@
 """七个协作工具及中文文字格式化。"""
 
 import os
+from functools import wraps
 
 from . import store
 from .paths import norm_file, norm_project
@@ -8,6 +9,25 @@ from .paths import norm_file, norm_project
 
 def current_agent():
     return os.environ.get("BRIDGE_AGENT", "unknown").strip().lower() or "unknown"
+
+
+PROJECT_OFF = "Bridge 未在此项目开启（由用户控制）。请忽略协作规则，正常工作；本次会话不必再调用 Bridge 工具。"
+GLOBAL_OFF = "Bridge 已被用户全局关闭。请忽略协作规则，正常工作；本次会话不必再调用 Bridge 工具。"
+
+
+def disabled_text(state):
+    if not state["global_enabled"]:
+        return GLOBAL_OFF
+    return "" if state["project_enabled"] else PROJECT_OFF
+
+
+def project_tool(function):
+    @wraps(function)
+    def checked(args):
+        project = norm_project(args.get("project"))
+        notice = disabled_text(store.switch_state(project))
+        return notice or function(args)
+    return checked
 
 
 def overview_text(project, agent=None, mark_read=False):
@@ -27,11 +47,13 @@ def overview_text(project, agent=None, mark_read=False):
     return "\n".join(out)
 
 
+@project_tool
 def t_overview(args):
     project = norm_project(args.get("project"))
     return overview_text(project, mark_read=args.get("mark_read", True))
 
 
+@project_tool
 def t_update_status(args):
     project = norm_project(args.get("project"))
     agent = current_agent()
@@ -42,6 +64,7 @@ def t_update_status(args):
     return f"状态已更新（{agent}）。{tip}"
 
 
+@project_tool
 def t_send_message(args):
     project = norm_project(args.get("project"))
     content = (args.get("content") or "").strip()
@@ -52,6 +75,7 @@ def t_send_message(args):
     return f"消息 #{result['id']} 已发送给 {'所有人' if to == 'all' else to}。"
 
 
+@project_tool
 def t_read_messages(args):
     project = norm_project(args.get("project"))
     limit = int(args.get("limit", 20))
@@ -63,6 +87,7 @@ def t_read_messages(args):
     return "\n".join([f"未读消息（{len(rows)} 条，已标为已读）："] + [fmt_msg(r) for r in rows])
 
 
+@project_tool
 def t_claim_files(args):
     project = norm_project(args.get("project"))
     files = [norm_file(project, f) for f in args.get("files") or [] if str(f).strip()]
@@ -76,6 +101,7 @@ def t_claim_files(args):
     return f"已认领 {len(files)} 个文件，到期 {result['expires']}：\n" + "\n".join(f"  {f}" for f in files)
 
 
+@project_tool
 def t_release_files(args):
     project = norm_project(args.get("project"))
     paths = [norm_file(project, f) for f in args.get("files") or []]
@@ -84,8 +110,11 @@ def t_release_files(args):
 
 
 def t_list_projects(args):
+    if not store.switch_state()["global_enabled"]:
+        return GLOBAL_OFF
     rows = store.list_projects()
-    return "\n".join(["用过 Bridge 的项目："] + [f"  {r['project']}（最近活动 {r['last']}）" for r in rows]) \
+    return "\n".join(["用过 Bridge 的项目："] + [
+        f"  {r['project']}（最近活动 {r['last'] or '-'}，{'已开启' if r['enabled'] else '未开启'}）" for r in rows]) \
         if rows else "还没有项目使用过 Bridge。"
 
 
@@ -118,7 +147,9 @@ def fmt_msg(r):
 
 INSTRUCTIONS = """Bridge 是你和其他 AI（Claude / Codex）协作的公告板。所有工具都需要 project 参数：填当前项目根目录的绝对路径。
 建议流程：开始任务前调用 bridge_overview；改文件前 claim_files；每完成一步 update_status；完成后 release_files。
-看到对方留言要及时回复（send_message）。对方认领的文件不要改，先留言协商。"""
+看到对方留言要及时回复（send_message）。对方认领的文件不要改，先留言协商。
+Bridge 的开关由用户通过命令行控制，新项目默认未开启，另有全局总开关。
+收到“未开启”或“已关闭”的提示后，请忽略协作规则，正常工作；本次会话不要再调用 Bridge。"""
 
 
 PROJECT = {"type": "string", "description": "当前项目根目录的绝对路径，例如 D:/code/ender-eda"}
@@ -135,7 +166,7 @@ TOOLS = [
     ("send_message", t_send_message, "给对方留言：提问、交接、通知、回复。",
      {"project": PROJECT,
       "content": {"type": "string", "description": "消息内容"},
-      "to": {"type": "string", "description": "收件人：claude / codex / all，默认 all"}}, ["project", "content"]),
+      "to": {"type": "string", "description": "收件人：claude / codex / human / all，默认 all"}}, ["project", "content"]),
     ("read_messages", t_read_messages, "读取给你的未读消息（读后标为已读）。include_read=true 时显示最近的全部消息。",
      {"project": PROJECT,
       "include_read": {"type": "boolean", "description": "是否包含已读消息，默认 false"},

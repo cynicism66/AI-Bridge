@@ -7,8 +7,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
-ROOT = Path(__file__).resolve().parents[1]
+from tests.support import ROOT
+from bridge_mcp import store
+from bridge_mcp.paths import norm_project
 TOOL_NAMES = [
     "bridge_overview", "update_status", "send_message", "read_messages",
     "claim_files", "release_files", "list_projects",
@@ -24,6 +27,8 @@ class SmokeTests(unittest.TestCase):
         # 刻意使用非 UTF-8 文本编码，确保协议走二进制流。
         self.env["PYTHONIOENCODING"] = "ascii"
         self.project = str(Path(self.directory.name) / "中文项目")
+        with patch.dict(os.environ, self.env):
+            store.set_enabled(True, norm_project(self.project))
 
     def rpc(self, method, params=None, agent="codex"):
         request = {"jsonrpc": "2.0", "id": "中文请求", "method": method}
