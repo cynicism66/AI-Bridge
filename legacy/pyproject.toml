@@ -15,6 +15,3 @@ bridge = "bridge_mcp.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-bridge_mcp = ["migrations/*.sql"]

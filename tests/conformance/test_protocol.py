@@ -57,9 +57,9 @@ class ProtocolTests(ContractCase):
         self.check(server.call("send_message", project=self.project, content=" \n "), "出错：消息内容不能为空", True)
         self.check(server.call("claim_files", project=self.project, files=[]), "出错：files 不能为空", True)
         self.check(server.call("read_messages", project=self.project, limit="bad"),
-                   "出错：invalid literal for int() with base 10: 'bad'", True)
+                   "出错：limit 必须是整数", True)
         self.check(server.call("claim_files", project=self.project, files=["a"], ttl_minutes="bad"),
-                   "出错：invalid literal for int() with base 10: 'bad'", True)
+                   "出错：ttl_minutes 必须是整数", True)
         self.check(server.call("read_messages", project=self.project), "没有未读消息。")
         self.check(server.call("read_messages", project=self.project, include_read=True), "还没有任何消息。")
         self.check(server.call("release_files", project=self.project), "已释放 0 个文件。")

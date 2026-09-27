@@ -6,15 +6,17 @@ from pathlib import Path
 import queue
 import re
 import subprocess
-import sys
 import tempfile
 import threading
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-PYTHON = [sys.executable, str(ROOT / "bridge.py")]
-COMMAND = [os.environ["BRIDGE_CMD"]] if os.environ.get("BRIDGE_CMD") else PYTHON
-GOLDEN = Path(__file__).with_name("golden")
+EXECUTABLE = Path(os.environ["BRIDGE_CMD"]) if os.environ.get("BRIDGE_CMD") else (
+    ROOT / "target" / "release" / ("bridge-mcp.exe" if os.name == "nt" else "bridge-mcp"))
+if not EXECUTABLE.is_file():
+    raise RuntimeError("未找到 Rust 可执行文件，请先运行 cargo build --release -p bridge-mcp；或设置 BRIDGE_CMD。")
+COMMAND = [str(EXECUTABLE.resolve())]
+GOLDEN = ROOT / "crates" / "bridge-core" / "resources"
 STAMP = "2090-01-02 03:04:05"
 PROJECT_OFF = "Bridge 未在此项目开启（由用户控制）。请忽略协作规则，正常工作；本次会话不必再调用 Bridge 工具。"
 GLOBAL_OFF = "Bridge 已被用户全局关闭。请忽略协作规则，正常工作；本次会话不必再调用 Bridge 工具。"

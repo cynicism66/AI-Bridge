@@ -10,6 +10,13 @@ _initialized = set()
 _lock = threading.Lock()
 
 
+def migration_directory():
+    """支持 legacy 源码运行，以及回滚时恢复到原 src 位置。"""
+    root = Path(__file__).resolve().parents[2]
+    direct = root / "migrations"
+    return direct if direct.is_dir() else root.parent / "migrations"
+
+
 def check_version(conn):
     version = int(conn.execute("PRAGMA user_version").fetchone()[0])
     if version > VERSION:
@@ -48,7 +55,7 @@ def initialize(conn, path):
         try:
             version = check_version(conn)
             for number in range(version + 1, VERSION + 1):
-                sql = (Path(__file__).with_name("migrations") / f"{number:03}.sql").read_text(encoding="utf-8")
+                sql = (migration_directory() / f"{number:03}.sql").read_text(encoding="utf-8")
                 for statement in statements(sql):
                     conn.execute(statement)
                 conn.execute(f"PRAGMA user_version={number}")

@@ -66,7 +66,7 @@ class HistoryTests(ContractCase):
                 self.env["BRIDGE_DB"] = str(self.database)
                 connection = sqlite3.connect(self.database)
                 try:
-                    connection.executescript((ROOT / "src/bridge_mcp/migrations/001.sql").read_text(encoding="utf-8"))
+                    connection.executescript((ROOT / "migrations/001.sql").read_text(encoding="utf-8"))
                     connection.execute(f"PRAGMA user_version={version}")
                     connection.execute("INSERT INTO settings VALUES (?, 1)", (self.project,))
                     for content in ("旧消息", "旧消息"):

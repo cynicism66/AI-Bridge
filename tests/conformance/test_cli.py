@@ -1,9 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
-import os
 import threading
-import unittest
 
-from .support import COMMAND, PYTHON, ContractCase, normalized
+from .support import ContractCase
 
 
 class CliTests(ContractCase):
@@ -42,25 +40,3 @@ class CliTests(ContractCase):
         state = self.cli("status")
         for index in range(4):
             self.assertIn(f"{self.project}/project-{index}：项目开关 已开启，有效状态 已开启，最近活动 -", state)
-
-    @unittest.skipUnless(os.environ.get("BRIDGE_CMD"), "仅 Rust 目标运行双向互通")
-    def test_interoperability_both_directions(self):
-        self.cli("on", self.project, command=PYTHON)
-        python, rust = self.session("claude", command=PYTHON), self.session("codex", command=COMMAND)
-        for sender, receiver, identity in ((python, rust, "codex"), (rust, python, "claude")):
-            result = sender.call("send_message", project=self.project, content="互通", to=identity)
-            self.assertNotIn("isError", result)
-            result = receiver.call("read_messages", project=self.project)
-            self.assertIn("互通", result["content"][0]["text"])
-            self.assertNotIn("isError", result)
-            sender.call("update_status", project=self.project, task="共享状态")
-            sender.call("claim_files", project=self.project, files=[identity + ".py"])
-            overview = receiver.call("bridge_overview", project=self.project)
-            self.assertIn("共享状态", overview["content"][0]["text"])
-            self.assertIn(identity + ".py", overview["content"][0]["text"])
-        self.assertEqual(normalized(self.cli("history", self.project, command=PYTHON)),
-                         normalized(self.cli("history", self.project, command=COMMAND)))
-        self.cli("off", self.project, command=PYTHON)
-        self.assertIn("未在此项目开启", rust.call("bridge_overview", project=self.project)["content"][0]["text"])
-        self.cli("on", self.project, command=COMMAND)
-        self.assertIn("共享状态", python.call("bridge_overview", project=self.project)["content"][0]["text"])

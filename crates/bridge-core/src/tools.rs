@@ -27,7 +27,7 @@ fn integer(args: &Value, key: &str, default: i64) -> Result<i64> {
     let s = value.as_str().unwrap_or("");
     s.trim()
         .parse()
-        .map_err(|_| anyhow::anyhow!("invalid literal for int() with base 10: '{s}'"))
+        .map_err(|_| anyhow::anyhow!("{key} 必须是整数"))
 }
 
 impl Bridge {

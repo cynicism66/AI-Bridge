@@ -10,8 +10,8 @@ use std::{
 
 pub const VERSION: i64 = 2;
 pub const MIGRATIONS: [&str; 2] = [
-    include_str!("../../../src/bridge_mcp/migrations/001.sql"),
-    include_str!("../../../src/bridge_mcp/migrations/002.sql"),
+    include_str!("../../../migrations/001.sql"),
+    include_str!("../../../migrations/002.sql"),
 ];
 static INITIALIZED: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
