@@ -25,7 +25,8 @@ class ConcurrencyTests(DatabaseTestCase):
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = [executor.submit(write, agent) for agent in ("claude", "codex")]
             for future in futures:
-                future.result(timeout=10)
+                # 高负载 CI 可能较慢；等待上限应大于 SQLite 自身的 15 秒锁超时。
+                future.result(timeout=30)
 
         with store.db() as conn:
             statuses = [dict(row) for row in conn.execute("SELECT * FROM status ORDER BY agent")]
