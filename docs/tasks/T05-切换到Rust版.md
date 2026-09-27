@@ -50,18 +50,18 @@ T04 证明了 Rust 版和 Python 版的行为一致。本任务把用户的 Clau
 - [x] 迁移 SQL 在 `migrations/` 下，工具定义只剩一份，错误提示改成了中文，一致性测试已同步更新
 - [x] 两个配置文件和备份的 diff 只有 `bridge` 那几行
 - [x] 真实环境验证：Codex 和 Claude 都通过 Rust 版调用成功，实际运行的进程是 `bridge-mcp.exe`
-- [ ] Python 版已移到 `legacy/`，`legacy/` 下的单元测试在 CI 里通过
-- [ ] 一致性测试（目标为 Rust）、`cargo fmt`、`clippy`、`test` 全部通过；CI 全绿，完成报告附上链接
+- [x] Python 版已移到 `legacy/`，`legacy/` 下的单元测试在 CI 里通过
+- [x] 一致性测试（目标为 Rust）、`cargo fmt`、`clippy`、`test` 全部通过；CI 全绿，完成报告附上链接
 - [x] README 写了安装、回滚、从源码编译的方法
 - [x] 旧数据库：已征得用户同意并删除，或者用户选择保留，两种情况都要在报告里写明
 
 ## 完成报告
-### 2026-09-28：实现、真实切换及冻结完成（等待提交后的 CI）
+### 2026-09-28：实现、真实切换及冻结完成
 
 #### 实现及本地验证
 - T04 按 Claude #18 的交接改为“用户决定跳过，并入 T05”，已结项；首提交 `fa7dbdc` 收录 T04 审查、PLAN 和 T05 任务。
 - 安装脚本先 release 编译，同目录暂存、SHA256 校验、原子替换；占用时中文提示并安全退出。没有新增 Rust 或 Python 运行依赖。
-- 加入 MSIX 检测前，Windows PowerShell 5.1 和 PowerShell 7 的安装集成测试均验证了首次安装、重复覆盖、真实 MCP 子进程占用时拒绝（hash 不变、无临时残留）、退出后更新。最终脚本的普通宿主路径交由 Windows CI 再次验证。
+- 加入 MSIX 检测前，Windows PowerShell 5.1 和 PowerShell 7 的安装集成测试均验证了首次安装、重复覆盖、真实 MCP 子进程占用时拒绝（hash 不变、无临时残留）、退出后更新。最终脚本的普通宿主路径已由 Windows CI 再次验证通过。
 - PowerShell 5.1 将 `$null` 转为空备份路径的问题已用 `[NullString]::Value` 修复；脚本使用 UTF-8 BOM，支持 5.1 中文解析。
 - 两份 SQL 移到根目录 `migrations/`；Rust 编译包含路径和冻结版读取路径同步更新。删除重复 golden 文件，现役工具规格只读 `crates/bridge-core/resources/`。
 - 整数类型错误变为 `limit 必须是整数`、`ttl_minutes 必须是整数`，其余工具文字与行为保持不变。
@@ -92,4 +92,5 @@ T04 证明了 Rust 版和 Python 版的行为一致。本任务把用户的 Clau
 - 相对最初任务增加了 MSIX 宿主与复制后检查，原因是正式切换发现真实故障，已将 Claude 的补充要求写入任务书。Python 项目元数据随归档移动，避免根目录继续宣传旧入口。
 - 未做 T06 及以后的功能，未改变开关、身份或其他全局设置。自动化测试全部使用临时数据库；实际公告板调用属于已授权的真实环境验收。
 - 首轮 CI（实现 `c9fbe7f`）的 5 个任务通过，Windows 安装测试暴露 PS5.1 的 Process 在创建 stdin writer 时继承宿主编码并预写 BOM，首条 ping 因此返回 Parse error。已在启动前暂时设置 UTF-8 无 BOM、启动后恢复宿主编码，再通过 BaseStream 写字节；本地强制带 BOM 宿主编码可复现旧问题，修复后 PS5.1/7 均返回 `result={}`。生产 Rust 代码无需改动。
-- 修复后的 CI 链接将在推送并通过后补入；届时勾选最后两项并结项。
+- 修复提交 `84ba0df` 的 [GitHub Actions 验收](https://github.com/cynicism66/AI-Bridge/actions/runs/36355512199) 六个任务全部成功：Windows/Ubuntu 的 Rust 检查和契约测试、两平台 Python 3.10/3.14 历史测试；Windows Rust 任务包含 PS5.1/7 的首次安装、重复覆盖、真实 MCP 占用保护及退出后重装。
+- 最终验收项全部满足；实现提交 `c9fbe7f`、编码修复 `84ba0df` 已推送。归档后再次通过实际 Codex MCP 调用，生产运行独立于旧入口。此后补充的报告与路线图仅为文档更新，不重复运行已通过的同一套测试。
