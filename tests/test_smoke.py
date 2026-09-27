@@ -32,7 +32,7 @@ class SmokeTests(unittest.TestCase):
         payload = (json.dumps(request, ensure_ascii=False) + "\n").encode("utf-8")
         self.assertIn("中文请求".encode("utf-8"), payload)
         result = subprocess.run(
-            [sys.executable, str(ROOT / "bridge.py")],
+            [sys.executable, "-X", "dev", "-W", "error", str(ROOT / "bridge.py")],
             input=payload, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             env={**self.env, "BRIDGE_AGENT": agent}, cwd=self.directory.name,
             timeout=15, check=True,
@@ -72,6 +72,33 @@ class SmokeTests(unittest.TestCase):
         self.assertIn(task, text)
         self.assertIn(task.encode("utf-8"), raw)
         self.assertIn("中文项目".encode("utf-8"), raw)
+
+    def test_multiple_requests_in_one_server_process(self):
+        requests = [
+            {"id": 1, "method": "initialize"},
+            {"method": "notifications/initialized"},
+            {"id": 2, "method": "tools/list"},
+            {"id": 3, "method": "tools/call", "params": {
+                "name": "update_status", "arguments": {"project": self.project, "task": "连续请求"},
+            }},
+            {"id": 4, "method": "tools/call", "params": {
+                "name": "bridge_overview", "arguments": {"project": self.project},
+            }},
+        ]
+        payload = b"".join((json.dumps({"jsonrpc": "2.0", **request}, ensure_ascii=False) + "\n").encode("utf-8")
+                           for request in requests)
+        result = subprocess.run(
+            [sys.executable, "-X", "dev", "-W", "error", str(ROOT / "bridge.py")],
+            input=payload, capture_output=True, env={**self.env, "BRIDGE_AGENT": "codex"},
+            cwd=self.directory.name, timeout=15, check=True,
+        )
+        self.assertEqual(result.stderr, b"")
+        replies = [json.loads(line.decode("utf-8")) for line in result.stdout.splitlines()]
+        self.assertEqual([reply["id"] for reply in replies], [1, 2, 3, 4])
+        self.assertEqual(replies[0]["result"]["serverInfo"]["name"], "bridge")
+        self.assertEqual([tool["name"] for tool in replies[1]["result"]["tools"]], TOOL_NAMES)
+        self.assertEqual(replies[2]["result"]["content"][0]["text"], "状态已更新（codex）。")
+        self.assertIn("连续请求", replies[3]["result"]["content"][0]["text"])
 
 
 if __name__ == "__main__":

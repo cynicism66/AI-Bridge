@@ -2,21 +2,30 @@
 
 import os
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
 
 TIME_FMT = "%Y-%m-%d %H:%M:%S"
-_CUSTOM_DB = os.environ.get("BRIDGE_DB")
-DB_PATH = _CUSTOM_DB or Path.home() / ".bridge" / "bridge.db"
 
 
+def db_path():
+    custom = os.environ.get("BRIDGE_DB")
+    if custom:
+        return Path(custom)
+    path = Path.home() / ".bridge" / "bridge.db"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+@contextmanager
 def db():
-    if not _CUSTOM_DB:
-        Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=15)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.executescript("""
+    conn = sqlite3.connect(db_path(), timeout=15)
+    try:
+        with conn:
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.executescript("""
         CREATE TABLE IF NOT EXISTS status (
             project TEXT, agent TEXT, task TEXT, progress TEXT, blockers TEXT, next_step TEXT,
             updated_at TEXT, PRIMARY KEY (project, agent));
@@ -28,8 +37,10 @@ def db():
         CREATE TABLE IF NOT EXISTS claims (
             project TEXT, path TEXT, agent TEXT, note TEXT, claimed_at TEXT, expires_at TEXT,
             PRIMARY KEY (project, path));
-    """)
-    return conn
+            """)
+            yield conn
+    finally:
+        conn.close()
 
 
 def now():
@@ -93,7 +104,7 @@ def read_messages(project, agent, limit=20, include_read=False):
 
 
 def claim_files(project, agent, files, ttl, note=""):
-    expires = (datetime.now() + timedelta(minutes=ttl)).strftime(TIME_FMT)
+    expires = (datetime.strptime(now(), TIME_FMT) + timedelta(minutes=ttl)).strftime(TIME_FMT)
     with db() as conn:
         purge_expired(conn)
         conflicts = []

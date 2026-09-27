@@ -5,10 +5,14 @@ import os
 from . import store
 from .paths import norm_file, norm_project
 
-AGENT = os.environ.get("BRIDGE_AGENT", "unknown").strip().lower() or "unknown"
+
+def current_agent():
+    return os.environ.get("BRIDGE_AGENT", "unknown").strip().lower() or "unknown"
 
 
-def overview_text(project, agent=AGENT, mark_read=False):
+def overview_text(project, agent=None, mark_read=False):
+    if agent is None:
+        agent = current_agent()
     data = store.overview(project, agent, mark_read)
     out = [f"项目：{project}", f"你的身份：{agent}", ""]
     out.append("== 各方状态 ==")
@@ -30,11 +34,12 @@ def t_overview(args):
 
 def t_update_status(args):
     project = norm_project(args.get("project"))
-    result = store.update_status(project, AGENT, args.get("task", ""), args.get("progress", ""),
+    agent = current_agent()
+    result = store.update_status(project, agent, args.get("task", ""), args.get("progress", ""),
                                  args.get("blockers", ""), args.get("next_step", ""))
     n = result["unread_count"]
     tip = f"\n提示：你有 {n} 条未读消息，请用 read_messages 查看。" if n else ""
-    return f"状态已更新（{AGENT}）。{tip}"
+    return f"状态已更新（{agent}）。{tip}"
 
 
 def t_send_message(args):
@@ -43,14 +48,14 @@ def t_send_message(args):
     if not content:
         raise ValueError("消息内容不能为空")
     to = (args.get("to") or "all").strip().lower()
-    result = store.send_message(project, AGENT, to, content)
+    result = store.send_message(project, current_agent(), to, content)
     return f"消息 #{result['id']} 已发送给 {'所有人' if to == 'all' else to}。"
 
 
 def t_read_messages(args):
     project = norm_project(args.get("project"))
     limit = int(args.get("limit", 20))
-    rows = store.read_messages(project, AGENT, limit, args.get("include_read"))
+    rows = store.read_messages(project, current_agent(), limit, args.get("include_read"))
     if args.get("include_read"):
         return "\n".join(["最近的消息："] + [fmt_msg(r) for r in rows]) if rows else "还没有任何消息。"
     if not rows:
@@ -64,7 +69,7 @@ def t_claim_files(args):
     if not files:
         raise ValueError("files 不能为空")
     ttl = max(1, int(args.get("ttl_minutes", 60)))
-    result = store.claim_files(project, AGENT, files, ttl, args.get("note", ""))
+    result = store.claim_files(project, current_agent(), files, ttl, args.get("note", ""))
     if result["conflicts"]:
         return "认领失败，以下文件已被别人认领（本次一个都没认领）：\n" + "\n".join(fmt_claim(r) for r in result["conflicts"]) \
             + "\n请先用 send_message 和对方协商，或等对方释放。"
@@ -74,7 +79,7 @@ def t_claim_files(args):
 def t_release_files(args):
     project = norm_project(args.get("project"))
     paths = [norm_file(project, f) for f in args.get("files") or []]
-    result = store.release_files(project, AGENT, paths)
+    result = store.release_files(project, current_agent(), paths)
     return f"已释放 {result['count']} 个文件。"
 
 

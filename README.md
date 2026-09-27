@@ -1,5 +1,7 @@
 # AI Bridge
 
+[![测试](https://github.com/cynicism66/AI-Bridge/actions/workflows/test.yml/badge.svg)](https://github.com/cynicism66/AI-Bridge/actions/workflows/test.yml)
+
 **让 Claude 和 Codex 在同一个项目里知道彼此在做什么。**
 
 AI Bridge（简称 Bridge）是一个让 Claude 和 Codex 互相看到工作状态、留言、认领文件的 MCP 服务器。
@@ -133,12 +135,13 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
 .\.venv\Scripts\bridge.exe show
 .\.venv\Scripts\python.exe -m bridge_mcp
-python -m unittest discover -s tests
+python -X dev -W error -m unittest discover -s tests -v
 ```
 
 激活 `.venv` 后也可直接运行 `bridge show` 和 `python -m bridge_mcp`。
-`setuptools` 仅用于构建安装包，项目没有运行时依赖。冒烟测试用 `unittest` 和子进程，
+`setuptools` 仅用于构建安装包，项目没有运行时依赖。测试用标准库 `unittest`，
 每次通过 `BRIDGE_DB` 指向独立临时数据库，不读写真实数据库。
+每次推送和拉取请求会在 Windows／Linux × Python 3.10／3.14 上运行测试，不安装第三方依赖。
 
 ## 七个工具
 
@@ -240,8 +243,8 @@ python -m unittest discover -s tests
 - `store.py`：SQLite 连接、建表及结构化数据读写。
 - `paths.py`：项目路径与文件路径规范化。
 
-依赖方向从命令行、协议进入工具，再进入数据和路径模块。包版本为 `0.1.0`；
-MCP `serverInfo.version` 暂时保留原型的 `1.0.0`，以兼容原有接口。
+依赖方向从命令行、协议进入工具，再进入数据和路径模块。
+包版本和 MCP `serverInfo.version` 统一读取 `bridge_mcp.__version__`（当前为 `0.1.0`）。
 
-当前已完成项目初始化、模块拆分和冒烟测试，后续计划见 [开发路线图](docs/PLAN.md)。
+已提供路径、存储、认领、协议、连续请求和并发测试，后续计划见 [开发路线图](docs/PLAN.md)。
 反馈问题或提出建议，请前往 [GitHub Issues](https://github.com/cynicism66/AI-Bridge/issues)。

@@ -3,9 +3,10 @@
 import json
 import sys
 
+from . import __version__
 from .tools import HANDLERS, INSTRUCTIONS, tool_list
 
-SERVER_INFO = {"name": "bridge", "version": "1.0.0"}
+SERVER_INFO = {"name": "bridge", "version": __version__}
 
 
 def handle(req):
