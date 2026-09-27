@@ -71,10 +71,21 @@ try {
     $info.CreateNoWindow = $true
     $info.RedirectStandardInput = $true
     $info.RedirectStandardOutput = $true
-    $process = [Diagnostics.Process]::Start($info)
-    $process.StandardInput.WriteLine('{"jsonrpc":"2.0","id":1,"method":"ping"}')
+    $info.StandardOutputEncoding = New-Object Text.UTF8Encoding($false)
+    # .NET Framework 没有 StandardInputEncoding；启动时会用 Console.InputEncoding
+    # 创建并自动刷新 StreamWriter，必须在此时避免写入 BOM。
+    $inputEncoding = [Console]::InputEncoding
+    try {
+        [Console]::InputEncoding = New-Object Text.UTF8Encoding($false)
+        $process = [Diagnostics.Process]::Start($info)
+    } finally { [Console]::InputEncoding = $inputEncoding }
+    # 不使用受宿主 Console.InputEncoding 影响的 StreamWriter，直接写 UTF-8 无 BOM 字节。
+    $request = [Text.Encoding]::UTF8.GetBytes('{"jsonrpc":"2.0","id":1,"method":"ping"}' + "`n")
+    $process.StandardInput.BaseStream.Write($request, 0, $request.Length)
+    $process.StandardInput.BaseStream.Flush()
     $reply = $process.StandardOutput.ReadLineAsync()
-    if (-not $reply.Wait(10000) -or $reply.Result -notmatch '"result":\{\}') { throw '测试 MCP 未启动' }
+    if (-not $reply.Wait(10000)) { throw '测试 MCP 响应超时' }
+    if ($reply.Result -notmatch '"result":\{\}') { throw "测试 MCP ping 响应错误：$($reply.Result)" }
     $result = Invoke-Installer
     if ($result.Code -eq 0 -or $result.Text -notmatch '请先退出 Claude 和 Codex 再安装') {
         throw "占用时未正确拒绝安装：$($result.Text)"
