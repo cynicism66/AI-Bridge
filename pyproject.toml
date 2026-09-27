@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bridge-mcp"
+version = "0.1.0"
+description = "让 Claude 和 Codex 互相看到状态、留言、认领文件的 MCP 服务器"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+bridge = "bridge_mcp.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
