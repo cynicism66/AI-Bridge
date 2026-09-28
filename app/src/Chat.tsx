@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Badge, Button, Select, Spinner, Textarea } from '@fluentui/react-components';
 import { Send20Regular } from '@fluentui/react-icons';
 import { invoke } from '@tauri-apps/api/core';
@@ -19,6 +19,12 @@ export function Chat({ project, refresh, onError, reload }: Props) {
   const lastRead = useRef(0);
   const latestId = useRef(0);
   const scrollAfterSend = useRef(false);
+  useLayoutEffect(() => {
+    if (scrollAfterSend.current && scroller.current) {
+      scroller.current.scrollTop = scroller.current.scrollHeight;
+      scrollAfterSend.current = false;
+    }
+  }, [messages]);
   useEffect(() => {
     let active = true;
     async function load() {
@@ -34,12 +40,11 @@ export function Chat({ project, refresh, onError, reload }: Props) {
           cursor = gap.before;
         }
         const nearEnd = scrollAfterSend.current || !scroller.current || scroller.current.scrollHeight - scroller.current.scrollTop - scroller.current.clientHeight < 120;
-        scrollAfterSend.current = false;
+        scrollAfterSend.current = nearEnd;
         setMessages(old => mergeMessages(old, incoming));
         latestId.current = page.messages.at(-1)?.id || latestId.current;
         if (initial.current) { setBefore(page.before); initial.current = false; }
         setLoading(false);
-        if (nearEnd) requestAnimationFrame(() => { if (active) scroller.current?.scrollTo({ top: scroller.current.scrollHeight }); });
         const through = page.messages.at(-1)?.id || 0;
         if (through > lastRead.current) {
           await invoke('mark_read', { project, through });
