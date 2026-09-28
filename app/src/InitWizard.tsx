@@ -5,7 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { Modal } from './Modal';
 import { zh } from './i18n/zh-CN';
-import { validAgent, wizardError } from './wizardLogic';
+import { validAgent, wizardError, copyDefaults } from './wizardLogic';
 import type { Management, TemplateInfo } from './types';
 
 export function InitWizard({ project, close, done }: { project: string; close: () => void; done: () => Promise<void> }) {
@@ -19,6 +19,8 @@ export function InitWizard({ project, close, done }: { project: string; close: (
   const [assignments, setAssignments] = useState<Record<string,string>>({});
   const [goal, setGoal] = useState('');
   const [writeRules, setWriteRules] = useState(true);
+  const [recordCopy, setRecordCopy] = useState(true);
+  const [addIgnore, setAddIgnore] = useState(true);
   const [kickoff, setKickoff] = useState(true);
   const [preview, setPreview] = useState<{ id: number; charter: string } | null>(null);
   const previewId = useRef<number | null>(null);
@@ -26,7 +28,7 @@ export function InitWizard({ project, close, done }: { project: string; close: (
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     let active = true;
-    invoke<Management>('management', { project }).then(m => { if (active) { setKnown(m.known); setGoal(m.charter?.goal || ''); } }).catch(e => { if (active) setError(String(e)); });
+    invoke<Management>('management', { project }).then(m => { if (active) { setKnown(m.known); setGoal(m.charter?.goal || ''); setRecordCopy(copyDefaults(!!m.charter).enabled); } }).catch(e => { if (active) setError(String(e)); });
     return () => { active = false; if (previewId.current !== null) void invoke('cancel_preview', { id: previewId.current }).catch(() => {}); };
   }, [project]);
   useEffect(() => {
@@ -44,7 +46,7 @@ export function InitWizard({ project, close, done }: { project: string; close: (
     if (step < 4) { setError(''); setStep(step + 1); return; }
     setBusy(true); setError('');
     try {
-      const p = await invoke<{ id: number; charter: string }>('preview_init', { project, request: { template: name, template_file: name === zh.customTemplate ? file : null, roles: template!.roles.map(r => `${r.slot}=${assignments[r.slot]}`), goal, write_rules: writeRules, no_kickoff: !kickoff } });
+      const p = await invoke<{ id: number; charter: string }>('preview_init', { project, request: { template: name, template_file: name === zh.customTemplate ? file : null, roles: template!.roles.map(r => `${r.slot}=${assignments[r.slot]}`), goal, write_rules: writeRules, no_kickoff: !kickoff, record_copy: recordCopy, add_ignore: recordCopy && addIgnore } });
       previewId.current = p.id; setPreview(p); setStep(5);
     } catch (e) { setError(String(e)); } finally { setBusy(false); }
   }
@@ -65,7 +67,7 @@ export function InitWizard({ project, close, done }: { project: string; close: (
       {step === 1 && <><Field label={zh.template}><Select value={name} onChange={(_, d) => setName(d.value)}>{[zh.taskTemplate, zh.pairTemplate, zh.soloTemplate, zh.customTemplate].map(n => <option key={n}>{n}</option>)}</Select></Field><p>{({ [zh.taskTemplate]: zh.taskDescription, [zh.pairTemplate]: zh.pairDescription, [zh.soloTemplate]: zh.soloDescription, [zh.customTemplate]: zh.customDescription })[name]}</p>{name === zh.customTemplate && <><Button onClick={() => { void open({ multiple: false, filters: [{ name: 'TOML', extensions: ['toml'] }] }).then(p => { if (typeof p === 'string') setFile(p); }).catch(e => setError(String(e))); }}>{zh.chooseTemplate}</Button><small>{file && displayPath(file)}</small></>}{template && <ul>{template.roles.map(r => <li key={r.slot}><strong>{r.slot}</strong> · {r.duties}</li>)}</ul>}</>}
       {step === 2 && template?.roles.map(r => <Field key={r.slot} label={r.slot}><Select value={assignments[r.slot] || ''} onChange={(_, d) => setAssignments(v => ({ ...v, [r.slot]: d.value }))}><option value="">—</option>{participants.map(a => <option key={a}>{a}</option>)}</Select></Field>)}
       {step === 3 && <Field label={zh.goal}><Textarea resize="vertical" rows={5} value={goal} onChange={(_, d) => setGoal(d.value)}/></Field>}
-      {step === 4 && <><Checkbox label={zh.writeRules} checked={writeRules} onChange={(_, d) => setWriteRules(d.checked === true)}/><Checkbox label={zh.kickoff} checked={kickoff} onChange={(_, d) => setKickoff(d.checked === true)}/><p className="muted">{zh.initWarning}</p></>}
+      {step === 4 && <><Checkbox label={zh.writeRules} checked={writeRules} onChange={(_, d) => setWriteRules(d.checked === true)}/><Checkbox label={zh.kickoff} checked={kickoff} onChange={(_, d) => setKickoff(d.checked === true)}/><Checkbox label={zh.copyEnabled} checked={recordCopy} onChange={(_, d) => setRecordCopy(d.checked === true)}/><Checkbox label={zh.copyIgnoreConfirm} checked={addIgnore} disabled={!recordCopy} onChange={(_, d) => setAddIgnore(d.checked === true)}/><p className="muted">{zh.copyDescription}</p><p className="muted">{zh.initWarning}</p></>}
       {step === 5 && <><p>{zh.fullPreview}</p><pre className="preview-body">{preview?.charter}</pre></>}
       {validation && <p className="validation">{validation}</p>}{busy && <Spinner size="tiny"/>}
     </div>

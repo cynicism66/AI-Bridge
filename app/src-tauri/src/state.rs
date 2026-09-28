@@ -9,6 +9,8 @@ use std::{collections::BTreeSet, path::PathBuf, sync::Mutex, time::SystemTime};
 
 pub type Shared = Mutex<AppState>;
 pub struct AppState {
+    pub copy_errors: std::collections::BTreeMap<String, String>,
+    pub copy_revision: u64,
     pub pending: Option<(u64, crate::management::Pending)>,
     pub preview_serial: u64,
     pub bridge: Bridge,
@@ -43,6 +45,8 @@ impl AppState {
             settings.save(&settings_path)?;
         }
         let mut state = Self {
+            copy_errors: Default::default(),
+            copy_revision: 0,
             pending: None,
             preview_serial: 0,
             bridge,

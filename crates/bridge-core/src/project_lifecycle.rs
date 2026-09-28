@@ -137,6 +137,7 @@ impl Bridge {
         // 仅保留 Bridge 自己的列表偏好，阻止自动发现立即把项目加回来。
         let mut batch = settings_batch(settings_path, |s| {
             s.hidden_projects.insert(project.into());
+            s.record_copies.remove(project);
         })?;
         batch.apply()?;
         if let Err(e) = tx.commit() {

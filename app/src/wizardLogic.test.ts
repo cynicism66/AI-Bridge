@@ -30,3 +30,6 @@ describe('wizard and management validation', () => {
     expect(filterError({ ...f, until: f.from })).toBe('');
   });
 });
+
+import { copyDefaults } from './wizardLogic';
+it('new projects opt in while existing projects remain off by default', () => { expect(copyDefaults(false)).toEqual({enabled:true,addIgnore:true}); expect(copyDefaults(true).enabled).toBe(false); });

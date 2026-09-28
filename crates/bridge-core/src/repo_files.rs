@@ -195,6 +195,9 @@ pub fn index(root: &Path) -> Result<String> {
             first
         ));
     }
+    if output(root, ".bridge").is_ok_and(|p| p.is_dir()) {
+        lines.push("- .bridge/：本地未打码的协作记录副本（请勿提交到公开仓库）".into());
+    }
     Ok(lines.join("\n"))
 }
 #[cfg(test)]

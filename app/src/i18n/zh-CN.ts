@@ -1,4 +1,13 @@
 export const zh = {
+  copyTitle: '项目内协作记录副本',
+  copyDescription: '自动写入项目 .bridge/，按月保存未打码的本地记录；桌面未运行时的历史会在下次补齐。需要公开分享时请使用导出。',
+  copyEnabled: '在项目里保存协作记录',
+  copyIgnoreConfirm: '开启时把 .bridge/ 加进 .gitignore（会修改项目文件）',
+  copyIgnoreButton: '确认把 .bridge/ 加进 .gitignore',
+  copyPrivacy: '协作记录可能会被提交，请注意隐私',
+  copyIgnored: '.bridge/ 已受 Git 忽略规则保护',
+  copyFailed: '副本暂未写入，软件将重试',
+
   "appName": "AI Bridge",
   "tagline": "让协作保持同步",
   "projects": "我的项目",
@@ -180,7 +189,7 @@ export const zh = {
   "continuePurge": "继续删除…",
   "purgeConfirmed": "彻底删除",
   "purgeWarning": "请先导出需要保留的协作记录。彻底删除会清除这个项目在 Bridge 中的全部状态、会话、消息、已读、认领、开关、章程、职务、权限和历史。",
-  "purgeNoFiles": "只清除 AI Bridge 的协作数据并隐藏项目，不修改 Claude/Codex 的配置或项目文件。以后可手动添加项目。",
+  "purgeNoFiles": "只清除 AI Bridge 的协作数据并隐藏项目，不修改 Claude/Codex 的配置或项目文件。以后可手动添加项目。项目文件夹里的 .bridge\\ 协作记录副本不会被删除，如不需要请手动删除。",
   "purgeRulesConditional": "如果曾写入规则文件，AGENTS.md / CLAUDE.md 中的 Bridge 章程区块仍会保留，如不需要请手动删除。",
   "purgeRulesRemain": "项目文件夹里的 AGENTS.md / CLAUDE.md 仍有 Bridge 章程区块，如不需要请手动删除。",
   "purgeFinalWarning": "此操作不可撤销，不保留删除历史事件。请再次确认。",

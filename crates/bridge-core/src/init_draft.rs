@@ -22,6 +22,7 @@ pub struct PreparedInit {
     write_rules: bool,
     no_kickoff: bool,
     batch: Batch,
+    settings_path: Option<std::path::PathBuf>,
 }
 impl Bridge {
     pub fn prepare_init(&self, project: &str, options: InitOptions<'_>) -> Result<PreparedInit> {
@@ -55,10 +56,31 @@ impl Bridge {
             write_rules: options.write_rules,
             no_kickoff: options.no_kickoff,
             batch,
+            settings_path: None,
         })
     }
 }
 impl PreparedInit {
+    pub fn stage_record_copy(
+        &mut self,
+        settings_path: &Path,
+        enabled: bool,
+        add_ignore: bool,
+    ) -> Result<()> {
+        let mut prefs = crate::app_settings::AppSettings::load(settings_path)?;
+        prefs
+            .record_copies
+            .entry(self.project.clone())
+            .or_default()
+            .enabled = enabled;
+        self.batch
+            .add(settings_path.into(), serde_json::to_vec_pretty(&prefs)?)?;
+        self.settings_path = Some(settings_path.into());
+        if enabled && add_ignore {
+            crate::copy_options::stage_ignore(Path::new(&self.project), &mut self.batch)?;
+        }
+        Ok(())
+    }
     pub fn commit(mut self) -> Result<String> {
         let tx = self
             .conn
@@ -103,7 +125,9 @@ impl PreparedInit {
             }
         }
         for path in self.batch.paths() {
-            crate::repo_files::output(Path::new(project), &path.to_string_lossy())?;
+            if self.settings_path.as_deref() != Some(path) {
+                crate::repo_files::output(Path::new(project), &path.to_string_lossy())?;
+            }
         }
         self.batch
             .apply()

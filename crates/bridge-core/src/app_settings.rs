@@ -1,13 +1,14 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppSettings {
+    pub record_copies: BTreeMap<String, RecordCopy>,
     pub notifications_enabled: bool,
     pub hidden_projects: BTreeSet<String>,
     pub close_tip_shown: bool,
@@ -17,6 +18,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             notifications_enabled: true,
+            record_copies: BTreeMap::new(),
             hidden_projects: BTreeSet::new(),
             close_tip_shown: false,
             last_notified_id: None,
@@ -46,4 +48,11 @@ impl AppSettings {
         }
         crate::atomic_file::write(path, &serde_json::to_vec_pretty(self)?)
     }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RecordCopy {
+    pub enabled: bool,
+    pub last_event_id: i64,
 }

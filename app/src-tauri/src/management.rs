@@ -26,6 +26,10 @@ pub struct InitRequest {
     goal: String,
     write_rules: bool,
     no_kickoff: bool,
+    #[serde(default)]
+    record_copy: bool,
+    #[serde(default)]
+    add_ignore: bool,
 }
 #[tauri::command]
 pub fn management(state: State<'_, Shared>, project: String) -> Reply<Value> {
@@ -48,7 +52,7 @@ pub fn preview_init(
 ) -> Reply<Value> {
     let mut s = lock(&state)?;
     s.pending = None;
-    let draft = s
+    let mut draft = s
         .bridge
         .prepare_init(
             &key(&project)?,
@@ -61,6 +65,9 @@ pub fn preview_init(
                 no_kickoff: request.no_kickoff,
             },
         )
+        .map_err(error)?;
+    draft
+        .stage_record_copy(&s.settings_path, request.record_copy, request.add_ignore)
         .map_err(error)?;
     s.preview_serial += 1;
     let id = s.preview_serial;

@@ -93,3 +93,11 @@ mod management_tests;
 mod project_lifecycle_tests;
 #[cfg(test)]
 mod template_tests;
+
+pub mod copy_options;
+#[cfg(test)]
+mod copy_options_tests;
+pub mod record_copy;
+#[cfg(test)]
+mod record_copy_tests;
+mod record_frames;

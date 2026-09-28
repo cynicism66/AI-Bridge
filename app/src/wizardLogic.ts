@@ -16,3 +16,5 @@ export const filterError = (f: HistoryFilter) => f.from && f.until && f.from > f
 export function permissionError(rules: string[], backendError: string | null): string {
   return backendError || (rules.some(r => !r.trim()) ? zh.permissionHelp : '');
 }
+
+export const copyDefaults = (initialized: boolean) => ({ enabled: !initialized, addIgnore: true });

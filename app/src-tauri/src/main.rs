@@ -7,6 +7,7 @@ mod management;
 mod notification_activation;
 mod notifications;
 mod project_commands;
+mod record_copies;
 mod state;
 mod tray;
 use state::Shared;
@@ -74,6 +75,9 @@ fn main() {
             management::validate_write,
             management::history_page,
             management::app_settings,
+            record_copies::copy_settings,
+            record_copies::save_copy_settings,
+            record_copies::ignore_record_copy,
             management::save_settings
         ])
         .setup(|app| {
@@ -103,6 +107,7 @@ fn main() {
                                 .lock()
                                 .map_err(|_| anyhow::anyhow!(locale::text("stateUnavailable")))?;
                             s.refresh(false)?;
+                            s.sync_copies();
                             s.revision
                         };
                         if revision != last_revision {
