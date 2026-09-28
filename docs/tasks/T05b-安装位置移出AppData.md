@@ -20,12 +20,16 @@ T05 把 `bridge-mcp.exe` 装在 `%LOCALAPPDATA%\AI Bridge\bin\`，结果出了�
 6. **报告**：在 T05 的完成报告后面补一节"T05b"，写明两次事故的经过、Windows Terminal 误报的原因、为什么改路径比加检测更可靠。
 
 ## 验收标准
-- [ ] 安装脚本安装到 `%USERPROFILE%\.bridge\bin\`；用户在自己的 PowerShell（Windows Terminal 里的）中用 `Test-Path` 能看到文件
+- [x] 安装脚本安装到 `%USERPROFILE%\.bridge\bin\`；用户在自己的 PowerShell（Windows Terminal 里的）中用 `Test-Path` 能看到文件
 - [x] 两个配置文件和 `.bak-t05b` 的 diff 只有 `bridge` 的 command 那一行
-- [ ] 真实环境验证：Codex 和 Claude 分别重启或重连之后，实际 MCP 调用成功；`Get-CimInstance` 显示两个 bridge-mcp.exe 的路径都是 `C:\Users\wangq\.bridge\bin\bridge-mcp.exe`
+- [x] 真实环境验证：Codex 和 Claude 分别重启或重连之后，实际 MCP 调用成功；`GetMappedFileNameW` 显示两个 bridge-mcp.exe 的实际映像路径都是 `C:\Users\wangq\.bridge\bin\bridge-mcp.exe`
 - [x] 契约测试、`cargo fmt`、`clippy`、`test`、`legacy` 测试全部通过；CI 全绿
 - [x] README、AGENTS 已更新；报告已补 T05b 一节
 
 ## 完成报告
 
-代码修改、安装及已授权的配置切换已完成；本地检查全部通过，真实客户端重连和用户侧 Test-Path 验收待完成。详细经过、配置差异证据及清理说明见 [T05 报告的 T05b 节](T05-切换到Rust版.md#t05b安装位置移出-appdata2026-09-28)。实现已提交为 `1af4691`，[CI 六个任务全部通过](https://github.com/cynicism66/AI-Bridge/actions/runs/36364821672)。安装文件的独立诊断确认实际映像位于 `.bridge/bin/`；最后两项用户/客户端验收尚未收到结果，因此本任务尚未最终结项。
+T05b 已完成。实现 `1af4691`、报告 `7e40587`，[CI 六项全绿](https://github.com/cynicism66/AI-Bridge/actions/runs/36364821672)。详细经过、配置差异和清理记录见 T05 报告的 T05b 节。
+
+Claude 公告板 #45 确认完整重启后实际 MCP 调用成功；#46 确认用户在 Windows Terminal 中 Test-Path=True，已自行删除 Claude 私有副本且复查无遗留。Codex 本轮实际 bridge_overview 成功（身份 codex），并重新调用 GetMappedFileNameW 验证 PID 3232（Codex）、16088（Claude）均映射到 `\Device\HarddiskVolume3\Users\wangq\.bridge\bin\bridge-mcp.exe`。
+
+README 已补充：修改 MCP 配置后必须完整重启 app，Claude 的 `/mcp` 重连不加载新 command；实际来源用 GetMappedFileNameW 核验，CIM 虚拟路径不能作为充分证据。全部验收通过；.bak-t05/.bak-t05b 和旧数据库保留。

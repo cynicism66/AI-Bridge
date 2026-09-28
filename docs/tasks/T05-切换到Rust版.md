@@ -126,14 +126,14 @@ MSIX 事故的处理做得很好：先检测祖先进程有没有包身份，安
 - `cargo fmt --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`（4 项）、release 编译、13 项 Rust 契约测试、61 项 legacy 测试全部通过。所有自动化测试使用临时数据库。
 - README 安装/配置/回滚和 AGENTS 的生产入口已更新，取消“只能由用户普通 PowerShell 安装”的限制。README 明确 `.bak-t05b` 回到已知有问题的旧 AppData 配置，只是撤销修改，不能保证恢复连接。
 
-### 待完成的真实验收
-- 等待用户在自己的 Windows Terminal PowerShell 执行 `Test-Path "$env:USERPROFILE\.bridge\bin\bridge-mcp.exe"` 并回报 True。
-- 等待 Codex 和 Claude 分别重启或重连后，使用实际会话中的 MCP 调用成功，并核对两个进程的新路径；仓库 exe 的临时 MCP 子进程仅用于公告板协作，不计作客户端验收。
+### 真实验收（已完成）
+- Claude #46 确认用户在自己的 Windows Terminal PowerShell 执行 Test-Path 返回 True，并已自行删除 Claude 旧私有副本，复查无遗留。
+- Claude #45 确认完整重启后的实际 MCP 调用成功；Codex 本轮实际 bridge_overview 成功。复核 PID 3232/16088 的 GetMappedFileNameW 均为用户 `.bridge/bin/bridge-mcp.exe`，双方真实验收通过。Claude 会缓存启动时的 command，单独 `/mcp` 重连无效；配置修改后必须完整重启 app，README 已纠正。
 - 实现提交 `1af4691` 的 [GitHub CI](https://github.com/cynicism66/AI-Bridge/actions/runs/36364821672) 六个任务全部成功，包括 Windows PS5.1/7 新目录安装与占用保护测试。
 - 新安装文件的独立诊断已通过：临时 BRIDGE_DB 下 ping 返回 `result={}`；`GetMappedFileNameW` 得到 `\Device\HarddiskVolume3\Users\wangq\.bridge\bin\bridge-mcp.exe`，确认该诊断进程没有从 LocalCache 加载。这不是客户端实际重连验收，不替代上面两项。
 
 ### 清理说明（只说明，不代删）
-- `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\AI Bridge\` 是 Claude 仍在使用的旧私有副本。必须等 Claude 切换到新路径、重连并验证成功后，由用户自行删除。此次未删除，也未覆盖运行中的旧 exe。
+- `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\AI Bridge\` 是 Claude 仍在使用的旧私有副本。必须等 Claude 切换到新路径、重连并验证成功后，由用户自行删除。Codex 未代删或覆盖旧 exe；随后用户已完成清理（Claude #46 确认）。
 - `.bak-t05` 两份备份继续保留；新增 `.bak-t05b` 备份也保留。
 - 旧 `D:\Bridge\bridge.db` 及其 -wal/-shm 继续按用户原决定保留。
 - 未开始 T06；除任务要求的安装与配置切换外，没有清理其他本地文件。

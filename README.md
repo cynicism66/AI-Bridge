@@ -68,7 +68,7 @@ BRIDGE_AGENT = "codex"
 ```
 
 Codex 的字段说明见 [官方 MCP 文档](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)。
-修改前备份配置，修改后重启 Claude app 和 Codex app，再分别调用 `bridge_overview` 验证。
+修改前备份配置，修改后必须完全退出并重新启动 Claude app 和 Codex app，再分别调用 `bridge_overview` 验证。Claude 会缓存启动时的 MCP 配置，仅在 `/mcp` 中重连或重启服务器进程不会加载新的 command。验证安装来源使用 `GetMappedFileNameW` 查询实际映像文件，不能仅依赖可能显示虚拟路径的 `Get-CimInstance`。
 两端应访问同一数据库，并把 [RULES.md](RULES.md) 加入各自的协作说明。
 
 ## 开关与人用命令
