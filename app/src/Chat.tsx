@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Badge, Button, Select, Spinner, Textarea } from '@fluentui/react-components';
-import { Send20Regular } from '@fluentui/react-icons';
+import { Badge, Button, Spinner } from '@fluentui/react-components';
+import { Composer } from './Composer';
 import { invoke } from '@tauri-apps/api/core';
 import { MessageReceipts } from './MessageReceipts';
 import { zh } from './i18n/zh-CN';
@@ -12,9 +12,6 @@ export function Chat({ project, refresh, onError, reload }: Props) {
   const [before, setBefore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [paging, setPaging] = useState(false);
-  const [content, setContent] = useState('');
-  const [to, setTo] = useState('all');
-  const [sending, setSending] = useState(false);
   const initial = useRef(true);
   const scroller = useRef<HTMLDivElement>(null);
   const lastRead = useRef(0);
@@ -69,11 +66,10 @@ export function Chat({ project, refresh, onError, reload }: Props) {
       requestAnimationFrame(() => { if (scroller.current) scroller.current.scrollTop += scroller.current.scrollHeight - height; });
     } catch (e) { onError(String(e)); } finally { setPaging(false); }
   }
-  async function send() {
-    if (!content.trim() || sending) return;
-    setSending(true);
-    try { await invoke('send_message', { project, content, to }); scrollAfterSend.current = true; setContent(''); await reload(); }
-    catch (e) { onError(String(e)); } finally { setSending(false); }
+  async function send(content: string, to: string) {
+    await invoke('send_message', { project, content, to });
+    scrollAfterSend.current = true;
+    void reload().catch(e => onError(String(e)));
   }
   return <div className="chat-content">
     <div className="messages" ref={scroller} aria-live="polite">
@@ -84,9 +80,6 @@ export function Chat({ project, refresh, onError, reload }: Props) {
         <div className="message-main"><div className="message-heading"><strong>{actor(m.sender)}</strong><span className="message-id">#{m.id}</span><span>→ {actor(m.recipient)}</span>{m.sender === 'human' && <Badge size="small" appearance="tint">{source(m.via)}</Badge>}<time>{m.created_at}</time></div><p className="message-body">{m.content}</p><MessageReceipts message={m}/></div>
       </article>)}
     </div>
-    <form className="composer" onSubmit={e => { e.preventDefault(); void send(); }}>
-      <Textarea value={content} onChange={(_, d) => setContent(d.value)} placeholder={zh.messagePlaceholder} aria-label={zh.messagePlaceholder} resize="vertical" disabled={sending}/>
-      <div className="composer-actions"><label>{zh.to}<Select value={to} onChange={(_, d) => setTo(d.value)} disabled={sending}><option value="all">{zh.all}</option><option value="claude">claude</option><option value="codex">codex</option></Select></label><Button type="submit" appearance="primary" icon={<Send20Regular/>} disabled={sending || !content.trim()}>{sending ? zh.sending : zh.send}</Button></div>
-    </form>
+    <Composer send={send} onError={onError}/>
   </div>;
 }

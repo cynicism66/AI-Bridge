@@ -55,7 +55,7 @@ export const zh = {
   "sourceMcp": "MCP",
   "messageRead": "已读",
   "messageUnread": "未读",
-  "messagePlaceholder": "AI 不会实时收到消息；它们查看公告板时才会读到。需要马上处理时，请在对应的 app 里提醒它，或者让它开始监视。",
+  "messagePlaceholder": "AI 不会实时收到消息；它们查看公告板时才会读到。需要马上处理时，请在对应的 app 里提醒它，或者让它开始监视。（Enter 发送，Shift+Enter 换行）",
   "send": "发送",
   "sending": "发送中…",
   "unread": "未读消息",
