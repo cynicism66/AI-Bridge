@@ -81,7 +81,7 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 - [x] 三级开关正确；AI 一级关闭时返回规定文字、不写入数据；改动马上生效
 - [x] 数据库升到版本 3，旧数据完整，触发器正常；用真实库的副本演练过
 - [x] `.git` 格式异常时退回按路径识别，不报错
-- [ ] `cargo fmt`、`clippy`、`test`、契约测试、`legacy` 测试全部通过；CI 全绿
+- [ ] `cargo fmt`、`clippy`、`test`、契约测试全部通过；Windows CI 全绿（按决定 28 精简，legacy 仅手动运行）
 - [ ] 部署完成，双方用真实 MCP 调用验证过
 - [x] README 更新：项目识别规则、会话编号、消息按 agent 投递、`agent` 命令
 - [x] Rust 单个文件不超过 300 行
@@ -120,6 +120,11 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 
 内部 session_id 和 PID=0 的迁移来源会话是为编号复用时的归属安全补充的存储细节，未改变工具参数或消息投递规则。未实施 T06b，未修改全局配置或 legacy，未升级真实数据库。
 
-CI 待本次实现提交后运行。全部 CI 通过后才按任务书请求用户退出两端、安装新版、完整重启，再由双方实际 MCP 调用和 GetMappedFileNameW 验证；部署验收当前仍未勾选。
+短路径修复提交 `aedd14f` 的 CI [36367255616](https://github.com/cynicism66/AI-Bridge/actions/runs/36367255616) 已全部通过。按用户决定 28，工作流精简为 Windows Rust 与两种 PowerShell 安装测试；移除 Ubuntu 和冻结 legacy 的 CI，AGENTS/README 同步说明，待精简后的工作流验收。全部 CI 通过后才按任务书请求用户退出两端、安装新版、完整重启，再由双方实际 MCP 调用和 GetMappedFileNameW 验证；部署验收当前仍未勾选。
 
-首次 CI 的 Windows Rust 测试发现临时目录采用 RUNNER~1 短路径，Git 公共目录解析成 runneradmin 长路径；已统一真实 Git/worktree 目录的规范路径，测试夹具也使用规范目录，并新增 Windows 8.3 长短路径同一身份的契约。本地修复后全部检查通过；等待修复提交的 CI。
+首次 CI 的 Windows Rust 测试发现临时目录采用 RUNNER~1 短路径，Git 公共目录解析成 runneradmin 长路径；已统一真实 Git/worktree 目录的规范路径，测试夹具也使用规范目录，并新增 Windows 8.3 长短路径同一身份的契约。本地修复后全部检查通过；修复提交的 Windows CI 已通过。
+
+
+### CI 范围调整（决定 28）
+
+按用户指示和 Claude #53，`.github/workflows/test.yml` 只保留 windows-latest 的 fmt、clippy -D warnings、test、release 编译、契约测试及 Windows PowerShell 5.1/PowerShell 7 安装测试。移除 Ubuntu 和 legacy Python 作业；冻结代码未改，本轮手动运行的 61 项历史测试仍通过。此决定覆盖原任务验收里的 legacy CI 要求。

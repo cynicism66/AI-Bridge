@@ -17,7 +17,7 @@ Bridge 让在同一个项目里工作的多个 AI（Claude、Codex）互相看�
 ## 代码组成
 | 目录 | 语言 | 状态 |
 |---|---|---|
-| `legacy/` | Python | **已冻结**，仅作为历史参考；历史单元测试继续运行 |
+| `legacy/` | Python | **已冻结**，仅作为历史参考；历史单元测试仅手动运行，不纳入 CI |
 | `crates/` | Rust | **现役版本**：数据库、工具、MCP 服务器、命令行；新功能只在 Rust 实现 |
 | `app/` | Tauri + React + TypeScript | 桌面软件（T08 开始） |
 | `tests/conformance/` | Python | **Rust 黑盒契约测试**：通过子进程和 stdio 验证，不再测试冻结版 |
@@ -29,6 +29,6 @@ Bridge 让在同一个项目里工作的多个 AI（Claude、Codex）互相看�
 - **数据库兼容**：默认 `~/.bridge/bridge.db`，迁移必须保留已有数据。T05 的版本 2 与冻结版兼容；后续功能只在 Rust 实现，不再要求冻结版通过新契约。
 - 面向 AI 的工具说明和返回内容都用中文。
 - 测试不许读写真实数据库，必须通过 `BRIDGE_DB` 指向临时文件。
-- **Python 部分**：只用标准库，最低支持 3.10；历史测试在 `legacy/` 下运行 `python -X dev -W error -m unittest discover -s tests -v`；Rust 契约测试在根目录运行 `python -X dev -W error -m unittest discover -s tests/conformance -t . -v`。
+- **Python 部分**：只用标准库，最低支持 3.10；历史测试不纳入 CI，仅手动在 `legacy/` 下运行 `python -X dev -W error -m unittest discover -s tests -v`；Rust 契约测试在根目录运行 `python -X dev -W error -m unittest discover -s tests/conformance -t . -v`。
 - **Rust 部分**：stable 工具链；提交前 `cargo fmt --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace` 都必须通过。
 - **依赖要克制**：Rust 依赖只允许用任务书里列出的。确实需要新增时，在完成报告里写明理由，由 Claude 审查决定是否保留。

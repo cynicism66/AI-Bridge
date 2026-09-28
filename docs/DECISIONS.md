@@ -59,3 +59,8 @@
 | # | 问题 | 决定 |
 |---|---|---|
 | 27 | bridge-mcp.exe 装在哪 | **`%USERPROFILE%\.bridge\bin\`**，和数据库放在同一个文件夹下。原因：Claude app 和 Codex app 都是 MSIX 打包应用，它们（以及它们启动的所有程序）写进 AppData 的文件会被转存到各自的私有目录，其他程序看不到。AppData 以外的路径不受影响。以后正式安装包的核心程序也不要放在 AppData 里 |
+
+### 自动测试（2026-09-28）
+| # | 问题 | 决定 |
+|---|---|---|
+| 28 | GitHub 上跑哪些测试 | **只测 Windows**：保留 Windows 上的 Rust 检查（fmt、clippy、test、契约测试）和安装脚本测试；去掉 Linux 的测试和冻结的 legacy Python 测试。原因：软件只做 Windows 版，legacy 已经冻结不再修改，多跑只会增加失败邮件。以后支持 macOS 时再加回相应平台 |

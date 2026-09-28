@@ -159,7 +159,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-install-local
 一致性测试默认使用仓库中的 Rust release 可执行文件；找不到时会提示先编译。
 `BRIDGE_CMD` 可指定单个可执行文件的路径，不能包含命令参数。
 协议定义的唯一现役来源是 `crates/bridge-core/resources/`；测试直接读这份定义，其他响应仅归一化时间后逐字比较。
-Rust 在 Windows／Ubuntu CI 中运行格式、Clippy、单元测试和黑盒契约测试；Windows 另验证本地安装脚本。
+CI 仅在 Windows 上运行 Rust 格式检查、Clippy、单元测试、release 编译和黑盒契约测试，并在 Windows PowerShell 5.1 与 PowerShell 7 下验证安装脚本。Linux 和冻结版 Python 不再纳入 CI。
 
 ## T05b 安装位置切换与回滚
 
@@ -204,4 +204,4 @@ Copy-Item -LiteralPath "$env:USERPROFILE\.codex\config.toml.bak-t05" -Destinatio
 - `tests/conformance/`：Rust 黑盒行为规格。
 
 
-Python 版已冻结，仅作为历史参考保留在 [legacy/](legacy/README.md)，其历史单元测试继续在 CI 中运行。
+Python 版已冻结，仅作为历史参考保留在 [legacy/](legacy/README.md)，其历史单元测试仅手动运行，不再纳入 CI：在 `legacy/` 下执行 `python -X dev -W error -m unittest discover -s tests -v`。
