@@ -81,13 +81,13 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 - [x] 三级开关正确；AI 一级关闭时返回规定文字、不写入数据；改动马上生效
 - [x] 数据库升到版本 3，旧数据完整，触发器正常；用真实库的副本演练过
 - [x] `.git` 格式异常时退回按路径识别，不报错
-- [ ] `cargo fmt`、`clippy`、`test`、契约测试全部通过；Windows CI 全绿（按决定 28 精简，legacy 仅手动运行）
+- [x] `cargo fmt`、`clippy`、`test`、契约测试全部通过；Windows CI 全绿（按决定 28 精简，legacy 仅手动运行）
 - [ ] 部署完成，双方用真实 MCP 调用验证过
 - [x] README 更新：项目识别规则、会话编号、消息按 agent 投递、`agent` 命令
 - [x] Rust 单个文件不超过 300 行
 
 ## 完成报告
-### 2026-09-28：实现与本地验收完成，待 CI 和部署
+### 2026-09-28：实现与 CI 验收完成，待正式部署
 
 - 先完成 T05b 收尾提交 `2662cdf`：补齐用户 Test-Path=True、双方实际调用、GetMappedFileNameW 与完整重启的证据，更新 README/PLAN，并收录 Claude 交接的 T06a 任务和设计修订。
 - 新增 `repository.rs`，只读 `.git`/gitdir/commondir/HEAD，解析普通仓库、相对/绝对 gitdir、worktree、子模块、bare 仓库及子目录查找；异常写一行中文 stderr 并退回原路径。不调用 git，也没有增加依赖。
@@ -120,7 +120,7 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 
 内部 session_id 和 PID=0 的迁移来源会话是为编号复用时的归属安全补充的存储细节，未改变工具参数或消息投递规则。未实施 T06b，未修改全局配置或 legacy，未升级真实数据库。
 
-短路径修复提交 `aedd14f` 的 CI [36367255616](https://github.com/cynicism66/AI-Bridge/actions/runs/36367255616) 已全部通过。按用户决定 28，工作流精简为 Windows Rust 与两种 PowerShell 安装测试；移除 Ubuntu 和冻结 legacy 的 CI，AGENTS/README 同步说明，待精简后的工作流验收。全部 CI 通过后才按任务书请求用户退出两端、安装新版、完整重启，再由双方实际 MCP 调用和 GetMappedFileNameW 验证；部署验收当前仍未勾选。
+短路径修复提交 `aedd14f` 的 CI [36367255616](https://github.com/cynicism66/AI-Bridge/actions/runs/36367255616) 已全部通过。按用户决定 28，工作流精简为 Windows Rust 与两种 PowerShell 安装测试；移除 Ubuntu 和冻结 legacy 的 CI，AGENTS/README 同步说明，精简后的提交 `d639e05` 已通过 [Windows CI 36367508583](https://github.com/cynicism66/AI-Bridge/actions/runs/36367508583)，fmt、clippy、test、release 编译、契约测试、两种 PowerShell 安装测试全部成功。全部 CI 通过后才按任务书请求用户退出两端、安装新版、完整重启，再由双方实际 MCP 调用和 GetMappedFileNameW 验证；部署验收当前仍未勾选。
 
 首次 CI 的 Windows Rust 测试发现临时目录采用 RUNNER~1 短路径，Git 公共目录解析成 runneradmin 长路径；已统一真实 Git/worktree 目录的规范路径，测试夹具也使用规范目录，并新增 Windows 8.3 长短路径同一身份的契约。本地修复后全部检查通过；修复提交的 Windows CI 已通过。
 
@@ -128,3 +128,7 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 ### CI 范围调整（决定 28）
 
 按用户指示和 Claude #53，`.github/workflows/test.yml` 只保留 windows-latest 的 fmt、clippy -D warnings、test、release 编译、契约测试及 Windows PowerShell 5.1/PowerShell 7 安装测试。移除 Ubuntu 和 legacy Python 作业；冻结代码未改，本轮手动运行的 61 项历史测试仍通过。此决定覆盖原任务验收里的 legacy CI 要求。
+
+### 部署交接点
+
+截至本次报告，代码、短路径修复、Windows CI 精简均已提交推送并验证，正式安装及双方真实 MCP 验收仍待完成。已在忽略目录 `target/t06a-deploy.ps1` 准备临时后台安装助手：等待 Claude/Codex/Bridge 进程全部退出后调用现有 `scripts/install-local.ps1`，核对安装文件与 release 的 SHA256；等待上限 15 分钟，不主动结束应用，结果写入 `target/t06a-deploy.log`。完整重启后应先检查日志与实际映像，再由双方真实 MCP 调用确认编号、分支和文件夹，最后勾选部署验收。本助手不修改配置，也不主动打开真实数据库。
