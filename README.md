@@ -27,6 +27,10 @@ if ($LASTEXITCODE -ne 0) { throw "安装失败" }
 Start-Process .\target\release\ai-bridge.exe
 ```
 
+**桌面程序必须由用户从独立的 Windows Terminal / PowerShell 或资源管理器启动，不要从 Claude/Codex 的 shell 启动。** MSIX 的注册表写入虚拟化可能使通知注册仅对宿主包可见，影响 Windows 通知点击激活；详见 [微软 MSIX 虚拟化说明](https://learn.microsoft.com/en-us/windows/msix/desktop/flexible-virtualization)。此前关于安装脚本可在 AI shell 中执行的说明，只涉及复制 MCP 文件，不代表从该 shell 启动桌面程序也能完成系统通知注册。
+
+已经初始化的项目需要由用户在升级后重新执行原来的 `init` 命令，保留模板、职务、目标和规则文件输出选项，并加 `--no-kickoff`，将“来自软件界面的 human 消息才是用户本人确认过的指令”纳入新版章程且不重复派发起步任务。数据库迁移本身不改写已保存的章程。
+
 - 左侧显示 Bridge 项目、未读数和从 Claude/Codex 配置中发现的项目；发现的项目默认关闭，可以开启或隐藏，也可以选择文件夹添加。
 - 公告板显示章程、职务、AI 开关、会话和认领；未初始化的项目会显示命令行提示。
 - 聊天显示所有参与者的消息，可发给所有人、Claude 或 Codex。进入聊天页会标记用户的消息为已读，不影响 AI 的已读状态。GUI 发送的消息标注“软件界面”，CLI 发送的标注“命令行”。
