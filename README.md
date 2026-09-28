@@ -11,9 +11,8 @@ Rust 核心通过 stdio MCP 供 AI 调用，通过命令行供用户操作；数
 ## 安装与从源码编译
 
 Windows 需要 Git、stable Rust 的 MSVC 工具链及 Visual Studio C++ 编译工具。
-**安装必须由用户从开始菜单打开普通 PowerShell 后亲自执行，不能交给 Codex 或其他打包应用代为安装。**
-MSIX 宿主可能将 LOCALAPPDATA 写入重定向到自己的私有目录，导致其他客户端找不到程序；脚本检测到包身份后会在编译、创建安装目录前拒绝安装。
-在普通 PowerShell 中执行：
+安装位置为用户主目录下的 `.bridge/bin/`，和数据库共用 `.bridge/` 父目录。
+MSIX 对 AppData 的私有目录转存不会影响这个位置，因此可以在 Windows Terminal、Claude 或 Codex 的 shell 中运行安装脚本，无需专门检查宿主包身份。
 
 ```powershell
 git clone https://github.com/cynicism66/AI-Bridge.git D:\Bridge
@@ -22,17 +21,14 @@ cargo --version
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-local.ps1
 ```
 
-包身份检测使用 Windows 的 [GetCurrentPackageFullName](https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getcurrentpackagefullname) 和 [GetPackageFullName](https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getpackagefullname) API，同时检查当前进程及其宿主链。
-
 安装脚本先执行 `cargo build --release -p bridge-mcp`，然后安装到固定位置：
 
 ```text
-%LOCALAPPDATA%\AI Bridge\bin\bridge-mcp.exe
+%USERPROFILE%\.bridge\bin\bridge-mcp.exe
 ```
 
 脚本支持 Windows PowerShell 5.1 和 PowerShell 7，可重复执行来更新。
 复制先写入同目录临时文件、校验 SHA256，再原子替换旧文件；复制或替换失败时保留原 exe。
-替换后还会独立检查 MSIX LocalCache 是否出现本轮更新的副本；发现重定向时返回非零退出码并提示普通 PowerShell，不自动删除副本。
 运行中的 exe 被占用时会提示“请先退出 Claude 和 Codex 再安装”并退出；退出两端后重新执行即可。
 MCP 配置应引用安装路径，编译目录 `target/release/` 会被 `cargo clean` 清理。
 
@@ -52,7 +48,7 @@ Claude Code 的 `~/.claude.json` 中：
   "mcpServers": {
     "bridge": {
       "type": "stdio",
-      "command": "C:\\Users\\wangq\\AppData\\Local\\AI Bridge\\bin\\bridge-mcp.exe",
+      "command": "C:\\Users\\wangq\\.bridge\\bin\\bridge-mcp.exe",
       "args": [],
       "env": { "BRIDGE_AGENT": "claude" }
     }
@@ -64,7 +60,7 @@ Codex 的 `~/.codex/config.toml` 中：
 
 ```toml
 [mcp_servers.bridge]
-command = 'C:\Users\wangq\AppData\Local\AI Bridge\bin\bridge-mcp.exe'
+command = 'C:\Users\wangq\.bridge\bin\bridge-mcp.exe'
 args = []
 
 [mcp_servers.bridge.env]
@@ -80,7 +76,7 @@ Codex 的字段说明见 [官方 MCP 文档](https://learn.chatgpt.com/docs/exte
 全局总开关默认开启，**每个项目默认关闭**；开关由用户控制，AI 工具不能改变开关。
 
 ```powershell
-$bridge = Join-Path $env:LOCALAPPDATA 'AI Bridge\bin\bridge-mcp.exe'
+$bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
 & $bridge on D:\code\example
 & $bridge status
 & $bridge show D:\code\example
@@ -150,7 +146,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-install-local
 协议定义的唯一现役来源是 `crates/bridge-core/resources/`；测试直接读这份定义，其他响应仅归一化时间后逐字比较。
 Rust 在 Windows／Ubuntu CI 中运行格式、Clippy、单元测试和黑盒契约测试；Windows 另验证本地安装脚本。
 
-## T05 回滚
+## T05b 安装位置切换与回滚
+
+当前有效安装位置为 `%USERPROFILE%\.bridge\bin\bridge-mcp.exe`。T05b 切换前的完整配置备份为 `~/.claude.json.bak-t05b` 和 `~/.codex/config.toml.bak-t05b`；这次只修改各自 `bridge.command`，不修改 args、身份或其他设置。
+
+如需撤销本次配置变更，先退出两端，再恢复备份：
+
+```powershell
+Copy-Item -LiteralPath "$env:USERPROFILE\.claude.json.bak-t05b" -Destination "$env:USERPROFILE\.claude.json" -Force
+Copy-Item -LiteralPath "$env:USERPROFILE\.codex\config.toml.bak-t05b" -Destination "$env:USERPROFILE\.codex\config.toml" -Force
+```
+
+备份引用的是旧 AppData 路径，而 T05 事故中该路径在用户的普通 PowerShell 中不存在；**恢复 `.bak-t05b` 只撤销配置，不能保证恢复连接**。应优先保留新的 `.bridge/bin/` 安装路径修复问题。恢复完整配置也会覆盖备份之后的其他设置，执行前应核对。
+
+Claude 的旧私有目录 `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\AI Bridge\` 由用户在 Claude 已切换新路径、重连成功后自行清理，安装脚本不删除它。更早的 `.bak-t05` 备份继续保留。
+
+## T05 历史回滚（恢复 Python）
 
 切换前的完整配置备份为 `~/.claude.json.bak-t05` 和 `~/.codex/config.toml.bak-t05`。
 退出两个 app 后，先恢复旧配置引用的入口和源码，再恢复配置：

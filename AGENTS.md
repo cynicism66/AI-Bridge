@@ -25,7 +25,7 @@ Bridge 让在同一个项目里工作的多个 AI（Claude、Codex）互相看�
 
 ## 硬性约束
 - **Windows 优先**：路径、编码、换行都要在 Windows 上正确。MCP 的 stdio 一律按 UTF-8 字节读写，每行一条 JSON。
-- **不能打断正在使用的配置**：用户的全局配置引用 `%LOCALAPPDATA%\AI Bridge\bin\bridge-mcp.exe`，不得改为编译目录。更新前退出两端，由用户在普通 PowerShell 执行安装脚本，避免 MSIX 文件重定向。
+- **不能打断正在使用的配置**：用户的全局配置引用 `%USERPROFILE%\.bridge\bin\bridge-mcp.exe`，不得改为编译目录。更新正在使用的 exe 前退出两端；安装脚本可在 Windows Terminal、Claude 或 Codex 的 shell 执行。此目录位于 AppData 之外，避开 MSIX 对 AppData 的私有目录转存。
 - **数据库兼容**：默认 `~/.bridge/bridge.db`，迁移必须保留已有数据。T05 的版本 2 与冻结版兼容；后续功能只在 Rust 实现，不再要求冻结版通过新契约。
 - 面向 AI 的工具说明和返回内容都用中文。
 - 测试不许读写真实数据库，必须通过 `BRIDGE_DB` 指向临时文件。

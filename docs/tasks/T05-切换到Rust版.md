@@ -94,3 +94,45 @@ T04 证明了 Rust 版和 Python 版的行为一致。本任务把用户的 Clau
 - 首轮 CI（实现 `c9fbe7f`）的 5 个任务通过，Windows 安装测试暴露 PS5.1 的 Process 在创建 stdin writer 时继承宿主编码并预写 BOM，首条 ping 因此返回 Parse error。已在启动前暂时设置 UTF-8 无 BOM、启动后恢复宿主编码，再通过 BaseStream 写字节；本地强制带 BOM 宿主编码可复现旧问题，修复后 PS5.1/7 均返回 `result={}`。生产 Rust 代码无需改动。
 - 修复提交 `84ba0df` 的 [GitHub Actions 验收](https://github.com/cynicism66/AI-Bridge/actions/runs/36355512199) 六个任务全部成功：Windows/Ubuntu 的 Rust 检查和契约测试、两平台 Python 3.10/3.14 历史测试；Windows Rust 任务包含 PS5.1/7 的首次安装、重复覆盖、真实 MCP 占用保护及退出后重装。
 - 最终验收项全部满足；实现提交 `c9fbe7f`、编码修复 `84ba0df` 已推送。归档后再次通过实际 Codex MCP 调用，生产运行独立于旧入口。此后补充的报告与路线图仅为文档更新，不重复运行已通过的同一套测试。
+
+## 审查意见（Claude）
+**结论：通过，T05 结项。**
+
+已验证：`cargo fmt`、`clippy -D warnings`、Rust 单元测试通过；13 项 Rust 契约测试通过；`legacy/` 下的 61 项历史测试通过；CI 六项全绿（36355512199）。两端真实环境验证已由双方分别完成（Claude 端：PID 21696，父进程 claude.exe）。配置备份与回滚说明齐全。迁移 SQL 已放进 `migrations/`，工具定义只剩一份，错误提示改成了中文。
+
+MSIX 事故的处理做得很好：先检测祖先进程有没有包身份，安装后再单独检查 LocalCache；还注意到文件复制会保留原来的修改时间，主动用 `SetLastWriteTimeUtc` 更新，让后检可靠；首轮 CI 的 PS5.1 stdin BOM 问题也查到了根本原因。消息 #33 主动更正了自己说错的地方，这一点很好。
+
+遗留问题（**T06 开始之前要处理**）：
+1. **Codex 的 LocalCache 私有副本是一个定时炸弹**：MSIX 读取文件时会优先读私有副本。以后用户在普通 PowerShell 里升级，只会更新真实路径，Codex 却会继续运行私有目录里的**旧版** exe。T06 会把数据库升到版本 3，到那时旧版 exe 会拒绝写入，Codex 那边的 bridge 就用不了了。建议现在就处理：用户退出 Codex，删掉 `%LOCALAPPDATA%\Packages\OpenAI.Codex_*\LocalCache\Local\AI Bridge`，重启 Codex，再用 `Get-CimInstance` 确认 Codex 启动的 bridge-mcp.exe 来自真实路径。
+2. 根目录下的 `src/bridge_mcp.egg-info` 和 `.venv` 是 T01 时 `pip install -e .` 留下的本地文件，现在指向的目录已经不存在，可以删掉。git 没有跟踪它们，只是本地清理。
+
+## T05b：安装位置移出 AppData（2026-09-28）
+
+本节修正上文 T05 阶段对“真实路径已安装”的判断；旧过程保留作为事故记录，当前安装位置以本节和 DECISIONS 第 27 条为准。
+
+### 事故及方案
+- 第一次从 Codex app 的 shell 安装，exe 被转存到 Codex 的 `LocalCache/Local/AI Bridge/`。应用内看到的标准路径属于合并文件视图，不能证明其他程序也能访问。
+- 第二次从 Claude app 的 shell 安装，exe 又进入 `Packages/Claude_pzs8sxrjxfjjc/LocalCache/Local/AI Bridge/`。Claude app 同样是 MSIX，先前将其 shell 当作不受转存影响的外部环境，是错误判断。
+- 后续 `Get-CimInstance` 虽显示标准路径，但 `GetMappedFileNameW` 查询 Claude PID 21704 主映像实际得到其私有 LocalCache 文件。用户从自己的 PowerShell 对旧标准路径执行 `Test-Path` 返回 False，证实真实 AppData 路径未安装。Codex 私有副本移除后无法连接，旧的双方通过记录不能证明缓存清理后的连接状态。
+- 原祖先包身份检测会误伤 Windows Terminal：Terminal 本身有 MSIX 包身份，但不能据此断言它启动的 PowerShell 会转存 AppData。此前“Codex 宿主会被拒绝”的验证只覆盖真阳性，未覆盖 Windows Terminal 的误报。
+- 按用户决定第 27 条，改为 `%USERPROFILE%/.bridge/bin/bridge-mcp.exe`。避开 AppData 的转存范围，从路径本身消除各应用读取不同副本的问题，比继续猜测宿主进程和扫描缓存更直接、可靠。删除祖先包身份检测、LocalCache 后检及专用文件 `package-context.ps1`，也删除对应测试。没有增加依赖或改变 Rust 业务行为。
+
+### 实施与本地证据
+- 安装脚本保留 release 编译、同目录暂存、SHA256 校验、原子替换，以及占用时的中文提示。
+- 安装集成测试改用临时 USERPROFILE 与 BRIDGE_DB；显式保留原 CARGO_HOME/RUSTUP_HOME，避免临时用户目录影响 Rust 工具链。PS5.1 和 PS7 均通过首次安装、重复覆盖、真实 MCP 占用时拒绝且 hash 不变、退出后重装及无暂存文件残留。
+- 已从 Codex shell 安装 `C:\Users\wangq\.bridge\bin\bridge-mcp.exe`，文件大小 **2,787,840 字节**，SHA256 **733632F25E810DEC453D8E5FDFAA4DA4E3BFA03CE824FED1F8D60B48E86BA6B4**，与 release 产物一致。
+- 用户已在任务书和 Claude 公告板 #40 授权配置切换。已创建完整备份 `C:\Users\wangq\.claude.json.bak-t05b` 和 `C:\Users\wangq\.codex\config.toml.bak-t05b`。
+- 两份 diff 各只有一行：bridge.command 从 `C:\Users\wangq\AppData\Local\AI Bridge\bin\bridge-mcp.exe` 改为 `C:\Users\wangq\.bridge\bin\bridge-mcp.exe`。args、BRIDGE_AGENT 和其他字段均原样保留。修改时同时做 JSON/TOML 语义比较、逆向替换后的逐字节比较、落盘字节及备份核验。
+- `cargo fmt --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`（4 项）、release 编译、13 项 Rust 契约测试、61 项 legacy 测试全部通过。所有自动化测试使用临时数据库。
+- README 安装/配置/回滚和 AGENTS 的生产入口已更新，取消“只能由用户普通 PowerShell 安装”的限制。README 明确 `.bak-t05b` 回到已知有问题的旧 AppData 配置，只是撤销修改，不能保证恢复连接。
+
+### 待完成的真实验收
+- 等待用户在自己的 Windows Terminal PowerShell 执行 `Test-Path "$env:USERPROFILE\.bridge\bin\bridge-mcp.exe"` 并回报 True。
+- 等待 Codex 和 Claude 分别重启或重连后，使用实际会话中的 MCP 调用成功，并核对两个进程的新路径；仓库 exe 的临时 MCP 子进程仅用于公告板协作，不计作客户端验收。
+- 等待本次提交的 GitHub CI，结果及链接将在通过后补入。
+
+### 清理说明（只说明，不代删）
+- `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\AI Bridge\` 是 Claude 仍在使用的旧私有副本。必须等 Claude 切换到新路径、重连并验证成功后，由用户自行删除。此次未删除，也未覆盖运行中的旧 exe。
+- `.bak-t05` 两份备份继续保留；新增 `.bak-t05b` 备份也保留。
+- 旧 `D:\Bridge\bridge.db` 及其 -wal/-shm 继续按用户原决定保留。
+- 未开始 T06；除任务要求的安装与配置切换外，没有清理其他本地文件。

@@ -1,8 +1,10 @@
 ﻿#Requires -Version 5.1
-# 集成测试只使用临时 LOCALAPPDATA 和 BRIDGE_DB，不碰用户安装或数据库。
+# 集成测试只使用临时 USERPROFILE 和 BRIDGE_DB，不碰用户安装或数据库。
 $ErrorActionPreference = 'Stop'
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) ('bridge-install-test-' + [guid]::NewGuid().ToString('N'))
-$originalLocalAppData = $env:LOCALAPPDATA
+$originalUserProfile = $env:USERPROFILE
+$originalCargoHome = $env:CARGO_HOME
+$originalRustupHome = $env:RUSTUP_HOME
 $originalDatabase = $env:BRIDGE_DB
 $process = $null
 $failure = $null
@@ -30,36 +32,12 @@ function Invoke-Installer {
 
 try {
     [IO.Directory]::CreateDirectory($testRoot) | Out-Null
-    $env:LOCALAPPDATA = $testRoot
+    # 隔离安装位置，但继续使用原工具链和依赖缓存。
+    if (-not $env:CARGO_HOME) { $env:CARGO_HOME = Join-Path $originalUserProfile '.cargo' }
+    if (-not $env:RUSTUP_HOME) { $env:RUSTUP_HOME = Join-Path $originalUserProfile '.rustup' }
+    $env:USERPROFILE = $testRoot
     $env:BRIDGE_DB = Join-Path $testRoot 'test.db'
-    $destination = Join-Path $testRoot 'AI Bridge\bin\bridge-mcp.exe'
-    . (Join-Path $PSScriptRoot 'package-context.ps1')
-    # 独立后检：旧副本不误报，本轮写入必须拒绝；只模拟临时目录。
-    $cacheCopy = Join-Path $testRoot 'Packages\Test.Package\LocalCache\Local\AI Bridge\bin\bridge-mcp.exe'
-    [IO.Directory]::CreateDirectory((Split-Path $cacheCopy)) | Out-Null
-    [IO.File]::WriteAllText($cacheCopy, 'fixture')
-    $startedUtc = [datetime]::UtcNow
-    [IO.File]::SetLastWriteTimeUtc($cacheCopy, $startedUtc.AddMinutes(-1))
-    Assert-BridgeInstallNotRedirected -LocalAppData $testRoot -StartedUtc $startedUtc
-    [IO.File]::SetLastWriteTimeUtc($cacheCopy, $startedUtc.AddSeconds(1))
-    $rejected = $false
-    try { Assert-BridgeInstallNotRedirected -LocalAppData $testRoot -StartedUtc $startedUtc }
-    catch {
-        if ($_.Exception.Message -notmatch '普通 PowerShell') { throw }
-        $rejected = $true
-    }
-    if (-not $rejected -or -not (Test-Path -LiteralPath $cacheCopy)) { throw '重定向后检失败或误删副本' }
-    [IO.File]::SetLastWriteTimeUtc($cacheCopy, $startedUtc.AddMinutes(-1))
-    Write-Output '通过：独立 LocalCache 后检忽略旧副本，拒绝本轮写入，并保留副本。'
-    if (Get-BridgePackageName) {
-        $result = Invoke-Installer
-        if ($result.Code -eq 0 -or $result.Text -notmatch 'MSIX' -or $result.Text -notmatch '普通 PowerShell') {
-            throw "打包宿主未正确拒绝安装：$($result.Text)"
-        }
-        if (Test-Path -LiteralPath (Join-Path $testRoot 'AI Bridge')) { throw '拒绝安装时仍创建了安装目录' }
-        Write-Output '通过：真实 MSIX 宿主中拒绝安装并提示普通 PowerShell；未创建安装目录。普通宿主的安装和占用测试由外部 PowerShell 或 Windows CI 执行。'
-        return
-    }
+    $destination = Join-Path $testRoot '.bridge\bin\bridge-mcp.exe'
     foreach ($round in 1..2) {
         $result = Invoke-Installer
         if ($result.Code -ne 0) { throw "第 $round 次安装失败：$($result.Text)" }
@@ -106,7 +84,9 @@ try {
         if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
         $process.Dispose()
     }
-    $env:LOCALAPPDATA = $originalLocalAppData
+    $env:USERPROFILE = $originalUserProfile
+    $env:CARGO_HOME = $originalCargoHome
+    $env:RUSTUP_HOME = $originalRustupHome
     $env:BRIDGE_DB = $originalDatabase
     # 只允许删除本测试在系统临时目录中创建的、名称唯一的目录。
     $resolved = [IO.Path]::GetFullPath($testRoot)

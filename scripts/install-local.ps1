@@ -9,14 +9,8 @@ $stagedFile = $null
 $failure = $null
 
 try {
-    $startedUtc = [datetime]::UtcNow
-    . (Join-Path $PSScriptRoot 'package-context.ps1')
-    $packageName = Get-BridgePackageName
-    if ($packageName) {
-        throw "检测到 MSIX 打包应用环境（$packageName）。为避免安装路径被重定向，请用户从开始菜单打开普通 PowerShell，进入项目目录后运行安装脚本；不要通过 Codex 或其他打包应用执行安装。"
-    }
-    if (-not $env:LOCALAPPDATA) { throw '无法确定 LOCALAPPDATA，安装已停止。' }
-    $binDirectory = Join-Path $env:LOCALAPPDATA 'AI Bridge\bin'
+    if (-not $env:USERPROFILE) { throw '无法确定 USERPROFILE，安装已停止。' }
+    $binDirectory = Join-Path $env:USERPROFILE '.bridge\bin'
     $destination = Join-Path $binDirectory 'bridge-mcp.exe'
     Push-Location -LiteralPath $repoRoot
     try {
@@ -42,8 +36,6 @@ try {
     # 同目录暂存并校验，最后原子替换；复制失败不会破坏当前 exe。
     $stagedFile = Join-Path $binDirectory ('.bridge-mcp-' + [guid]::NewGuid().ToString('N') + '.tmp')
     [IO.File]::Copy($source, $stagedFile, $false)
-    # Copy 保留源文件时间；主动标记本次复制，供独立的重定向后检识别。
-    [IO.File]::SetLastWriteTimeUtc($stagedFile, [datetime]::UtcNow)
     if ((Get-FileHash -LiteralPath $source).Hash -ne (Get-FileHash -LiteralPath $stagedFile).Hash) {
         throw '复制校验失败，已保留原安装文件。'
     }
@@ -59,7 +51,6 @@ try {
         throw '请先退出 Claude 和 Codex 再安装；若已退出，请检查安装目录的写权限。'
     }
     $stagedFile = $null
-    Assert-BridgeInstallNotRedirected -LocalAppData $env:LOCALAPPDATA -StartedUtc $startedUtc
     Write-Output "已安装：$destination"
 } catch {
     $failure = $_.Exception.Message
