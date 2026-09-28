@@ -63,7 +63,7 @@ fn metadata(root: &Path, marker: &Path) -> Result<Project> {
     };
     Ok(Project {
         key: normalized(key)?,
-        worktree: normalized(root)?,
+        worktree: normalized(&std::fs::canonicalize(root)?)?,
         branch,
     })
 }

@@ -73,7 +73,7 @@ class ContractCase(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="bridge-契约-")
         self.addCleanup(temporary.cleanup)
-        self.directory = Path(temporary.name)
+        self.directory = Path(temporary.name).resolve()
         self.database = self.directory / "bridge.db"
         self.project = os.path.normcase(str(self.directory)).replace("\\", "/")
         self.env = {**os.environ, "BRIDGE_DB": str(self.database), "BRIDGE_AGENT": "codex",

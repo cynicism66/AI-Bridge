@@ -99,7 +99,7 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 
 ### 本地测试
 
-`cargo fmt --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`（9 项）、release 编译、22 项 Rust 契约测试、61 项 legacy 测试全部通过。契约覆盖四进程并发编号、同 AI 多会话状态/认领隔离、编号复用、消息共享已读、worktree/分支、坏 Git 数据回退、三级开关与关闭时全表快照不变，以及版本 2 数据和触发器迁移。首次新增测试暴露 Python sqlite3 上下文不会关闭连接，已改为 contextlib.closing，严格模式和 Windows 清理均通过。
+`cargo fmt --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`（9 项）、release 编译、23 项 Rust 契约测试、61 项 legacy 测试全部通过。契约覆盖四进程并发编号、同 AI 多会话状态/认领隔离、编号复用、消息共享已读、worktree/分支、坏 Git 数据回退、三级开关与关闭时全表快照不变，以及版本 2 数据和触发器迁移。首次新增测试暴露 Python sqlite3 上下文不会关闭连接，已改为 contextlib.closing，严格模式和 Windows 清理均通过。
 
 ### 真实数据库副本演练（原库只读）
 
@@ -121,3 +121,5 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 内部 session_id 和 PID=0 的迁移来源会话是为编号复用时的归属安全补充的存储细节，未改变工具参数或消息投递规则。未实施 T06b，未修改全局配置或 legacy，未升级真实数据库。
 
 CI 待本次实现提交后运行。全部 CI 通过后才按任务书请求用户退出两端、安装新版、完整重启，再由双方实际 MCP 调用和 GetMappedFileNameW 验证；部署验收当前仍未勾选。
+
+首次 CI 的 Windows Rust 测试发现临时目录采用 RUNNER~1 短路径，Git 公共目录解析成 runneradmin 长路径；已统一真实 Git/worktree 目录的规范路径，测试夹具也使用规范目录，并新增 Windows 8.3 长短路径同一身份的契约。本地修复后全部检查通过；等待修复提交的 CI。

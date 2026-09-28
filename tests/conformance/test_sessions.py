@@ -112,3 +112,22 @@ class SessionTests(ContractCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn(self.project, content(json.loads(result.stdout)["result"]))
         self.assertEqual(len(result.stderr.splitlines()), 1)
+
+    def test_windows_short_and_long_git_paths_share_identity(self):
+        if os.name != "nt":
+            self.skipTest("Windows 8.3 路径")
+        import ctypes
+        from ctypes import wintypes
+        main, _, _ = self.git_pair()
+        get_short = ctypes.WinDLL("kernel32", use_last_error=True).GetShortPathNameW
+        get_short.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+        get_short.restype = wintypes.DWORD
+        buffer = ctypes.create_unicode_buffer(32768)
+        self.assertGreater(get_short(str(main), buffer, len(buffer)), 0)
+        if buffer.value.lower() == str(main).lower():
+            self.skipTest("该卷没有生成 8.3 别名")
+        server = self.session()
+        via_short = content(server.call("bridge_overview", project=buffer.value))
+        via_long = content(server.call("bridge_overview", project=str(main)))
+        self.assertEqual(via_short, via_long)
+        self.assertIn(f"文件夹 {key(main)}", via_short)

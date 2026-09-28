@@ -7,7 +7,9 @@ impl Directory {
             crate::sessions::random_id().unwrap()
         ));
         std::fs::create_dir(&path).unwrap();
-        Self(path)
+        let canonical = std::fs::canonicalize(&path).unwrap();
+        let value = canonical.to_string_lossy();
+        Self(PathBuf::from(value.strip_prefix(r"\\?\").unwrap_or(&value)))
     }
     pub fn write(&self, name: &str, value: &str) -> PathBuf {
         let path = self.0.join(name);
