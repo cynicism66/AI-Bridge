@@ -8,14 +8,15 @@ use std::{
     time::Duration,
 };
 
-pub const VERSION: i64 = 6;
-pub const MIGRATIONS: [&str; 6] = [
+pub const VERSION: i64 = 7;
+pub const MIGRATIONS: [&str; 7] = [
     include_str!("../../../migrations/001.sql"),
     include_str!("../../../migrations/002.sql"),
     include_str!("../../../migrations/003.sql"),
     include_str!("../../../migrations/004.sql"),
     include_str!("../../../migrations/005.sql"),
     include_str!("../../../migrations/006.sql"),
+    include_str!("../../../migrations/007.sql"),
 ];
 static INITIALIZED: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 

@@ -3,9 +3,9 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { zh } from './i18n/zh-CN';
-import { actor, mergeMessages, projectName, source, trayState, unreadTotal } from './logic';
+import { actor, historyMessageId, mergeMessages, projectName, source, trayState, unreadTotal } from './logic';
 import type { Message } from './types';
-const message = (id: number, recipient = 'all', sender = 'codex'): Message => ({ id, project: '/test', sender, recipient, content: 'test', created_at: '', via: 'mcp' });
+const message = (id: number, recipient = 'all', sender = 'codex'): Message => ({ id, project: '/test', sender, recipient, content: 'test', created_at: '', via: 'mcp', receipts: [] });
 describe('presentation logic', () => {
   it('unread counts and global-off precedence', () => {
     expect(unreadTotal([{ unread: 2 }, { unread: 3 }, { unread: -1 }])).toBe(5);
@@ -39,4 +39,9 @@ describe('centralized resources', () => {
     }
     for (const value of Object.values(zh)) expect(value.length).toBeGreaterThan(0);
   });
+});
+
+it('uses the message identity rather than the history event identity', () => {
+  expect(historyMessageId({ message_id: 141 })).toBe(141);
+  for (const detail of [null, {}, { id: 42 }, { message_id: '141' }, { message_id: -1 }]) expect(historyMessageId(detail)).toBeNull();
 });

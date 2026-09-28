@@ -72,19 +72,23 @@ impl Bridge {
         limit: i64,
     ) -> Result<MessagePage> {
         let limit = limit.clamp(1, 200);
+        let mut conn = self.database.open()?;
+        let tx = conn.transaction()?;
         let mut messages: Vec<Message> = decode(query(
-            &self.database.open()?,
+            &tx,
             "SELECT * FROM messages WHERE project=? AND id<? ORDER BY id DESC LIMIT ?",
             params![project, before.unwrap_or(i64::MAX), limit + 1],
         )?)?;
         let more = messages.len() as i64 > limit;
         messages.truncate(limit as usize);
         messages.reverse();
+        crate::message_receipts::attach(&tx, project, &mut messages)?;
         let before = if more {
             messages.first().map(|m| m.id)
         } else {
             None
         };
+        tx.commit()?;
         Ok(MessagePage { messages, before })
     }
 
@@ -107,7 +111,7 @@ impl Bridge {
 
     /// 只标记当前已经展示到的消息，避免并发新消息被悄悄标为已读。
     pub fn mark_human_read(&self, project: &str, through: i64) -> Result<()> {
-        self.database.open()?.execute("INSERT OR IGNORE INTO reads SELECT id,'human' FROM messages WHERE project=? AND id<=? AND sender!='human' AND recipient IN ('human','all')", params![project,through])?;
+        self.database.open()?.execute("INSERT OR IGNORE INTO reads (message_id,agent,read_at) SELECT id,'human',? FROM messages WHERE project=? AND id<=? AND sender!='human' AND recipient IN ('human','all')", params![now()?,project,through])?;
         Ok(())
     }
 

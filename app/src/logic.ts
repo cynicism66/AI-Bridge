@@ -8,3 +8,9 @@ export function mergeMessages(old: Message[], latest: Message[]): Message[] {
 }
 export function actor(name: string): string { return name === 'human' ? zh.human : name === 'all' ? zh.all : name === 'bridge' ? zh.bridge : name; }
 export function source(via: Message['via']): string { return via === 'gui' ? zh.sourceGui : via === 'cli' ? zh.sourceCli : zh.sourceMcp; }
+
+export function historyMessageId(detail: unknown): number | null {
+  if (!detail || typeof detail !== 'object' || !('message_id' in detail)) return null;
+  const id = detail.message_id;
+  return typeof id === 'number' && Number.isSafeInteger(id) && id > 0 ? id : null;
+}

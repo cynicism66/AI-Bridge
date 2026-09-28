@@ -1,4 +1,5 @@
 mod cli;
+mod wait;
 
 use anyhow::Result;
 use bridge_core::{protocol, Bridge};
@@ -26,28 +27,36 @@ fn serve(bridge: &Bridge) -> Result<()> {
     Ok(())
 }
 
-fn run() -> Result<()> {
+fn run() -> Result<i32> {
     let bridge = Bridge::from_env()?;
-    if let Some(text) = cli::run(&bridge)? {
-        let mut output = io::stdout().lock();
-        output.write_all(text.as_bytes())?;
-        output.write_all(b"\n")?;
-        output.flush()?;
-        Ok(())
-    } else {
-        serve(&bridge)
+    match cli::run(&bridge)? {
+        cli::Output::Exit(code) => Ok(code),
+        cli::Output::Serve => {
+            serve(&bridge)?;
+            Ok(0)
+        }
+        cli::Output::Text(text) => {
+            let mut output = io::stdout().lock();
+            output.write_all(text.as_bytes())?;
+            output.write_all(b"\n")?;
+            output.flush()?;
+            Ok(0)
+        }
     }
 }
 
 fn main() {
-    if let Err(error) = run() {
-        if error
-            .downcast_ref::<io::Error>()
-            .is_some_and(|e| e.kind() == io::ErrorKind::BrokenPipe)
-        {
-            return;
+    match run() {
+        Ok(code) => std::process::exit(code),
+        Err(error) => {
+            if error
+                .downcast_ref::<io::Error>()
+                .is_some_and(|e| e.kind() == io::ErrorKind::BrokenPipe)
+            {
+                return;
+            }
+            eprintln!("出错：{error}");
+            std::process::exit(2);
         }
-        eprintln!("出错：{error}");
-        std::process::exit(2);
     }
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Card, Checkbox, Field, Input, Spinner } from '@fluentui/react-components';
 import { History20Regular, Chat20Regular, LockClosed20Regular, People20Regular } from '@fluentui/react-icons';
 import { invoke } from '@tauri-apps/api/core';
+import { historyMessageId } from './logic';
 import { zh } from './i18n/zh-CN';
 import { filterError } from './wizardLogic';
 import type { HistoryFilter, HistoryPage, Management } from './types';
@@ -33,7 +34,7 @@ export function History({ project, refresh, onError }: { project: string; refres
     <div className="filter-row"><Field label={zh.dateFrom}><Input type="date" value={draft.from} onChange={(_, d) => setDraft(f => ({ ...f, from: d.value }))}/></Field><Field label={zh.dateUntil}><Input type="date" value={draft.until} onChange={(_, d) => setDraft(f => ({ ...f, until: d.value }))}/></Field><Field label={zh.keyword}><Input value={draft.keyword} onChange={(_, d) => setDraft(f => ({ ...f, keyword: d.value }))}/></Field></div>
     {filterError(draft) && <p className="validation">{filterError(draft)}</p>}<div className="button-row"><Button appearance="primary" disabled={busy || !!filterError(draft)} onClick={() => setFilter({ ...draft })}>{zh.applyFilters}</Button><Button disabled={busy} onClick={() => { setDraft(empty); setFilter({ ...empty }); }}>{zh.clearFilters}</Button></div>
   </div></Card>
-    {page.events.map(e => <Card key={e.id} className="event-card"><div className="event-description">{e.kind === 'message' ? <Chat20Regular/> : e.kind === 'permission' ? <LockClosed20Regular/> : ['init', 'role', 'handover'].includes(e.kind) ? <People20Regular/> : <History20Regular/>}<span>{e.description}</span></div><details><summary>{zh.details}</summary><pre>{JSON.stringify(e.detail, null, 2)}</pre></details></Card>)}
+    {page.events.map(e => <Card key={e.id} className="event-card"><div className="event-description">{e.kind === 'message' ? <Chat20Regular/> : e.kind === 'permission' ? <LockClosed20Regular/> : ['init', 'role', 'handover'].includes(e.kind) ? <People20Regular/> : <History20Regular/>}<span>{e.description}</span>{e.kind === 'message' && historyMessageId(e.detail) !== null && <span className="message-id">#{historyMessageId(e.detail)}</span>}</div><details><summary>{zh.details}</summary><pre>{JSON.stringify(e.detail, null, 2)}</pre></details></Card>)}
     {!page.events.length && !busy && <p className="muted">{zh.noEvents}</p>}
     <p className="muted">{page.before ? zh.onlyRecent.replace('{count}', String(page.events.length)) : page.events.length ? zh.allEventsLoaded : ''}</p>
     {page.before && <Button disabled={busy} onClick={() => void more()}>{zh.loadMore}</Button>}{busy && <Spinner size="tiny"/>}

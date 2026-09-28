@@ -10,10 +10,11 @@ pub(crate) fn unread(conn: &Connection, project: &str, agent: &str) -> Result<Ve
 }
 
 pub(crate) fn mark_read(conn: &Connection, rows: &[Value], agent: &str) -> Result<()> {
+    let stamp = now()?;
     for row in rows {
         conn.execute(
-            "INSERT OR IGNORE INTO reads VALUES (?, ?)",
-            params![row["id"].as_i64(), agent],
+            "INSERT OR IGNORE INTO reads (message_id,agent,read_at) VALUES (?, ?, ?)",
+            params![row["id"].as_i64(), agent, stamp],
         )?;
     }
     Ok(())

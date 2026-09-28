@@ -25,6 +25,7 @@ pub mod history;
 pub mod history_page;
 pub mod human;
 pub mod management;
+mod message_receipts;
 mod messages;
 pub mod paths;
 pub mod project_lifecycle;
@@ -33,6 +34,7 @@ pub mod repository;
 mod sessions;
 mod status;
 mod tools;
+pub mod wait;
 
 use anyhow::Result;
 use chrono::{Local, NaiveDateTime};

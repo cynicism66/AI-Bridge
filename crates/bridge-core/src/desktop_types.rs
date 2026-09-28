@@ -59,6 +59,14 @@ pub struct Message {
     pub content: String,
     pub created_at: String,
     pub via: String,
+    #[serde(default)]
+    pub receipts: Vec<ReadReceipt>,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ReadReceipt {
+    pub agent: String,
+    pub read: bool,
+    pub read_at: Option<String>,
 }
 #[derive(Serialize, Debug)]
 pub struct MessagePage {

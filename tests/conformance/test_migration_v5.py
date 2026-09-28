@@ -19,7 +19,7 @@ class MigrationV5Tests(ContractCase):
         self.cli("status")
         self.cli("status")
         with closing(sqlite3.connect(self.database)) as db:
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 6)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 7)
             for table, rows in old.items():
                 actual = db.execute(f"SELECT * FROM {table}").fetchall()
                 self.assertEqual([r[:len(rows[0])] for r in actual] if rows else actual, rows)

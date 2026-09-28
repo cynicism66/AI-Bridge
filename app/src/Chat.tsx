@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Badge, Button, Select, Spinner, Textarea } from '@fluentui/react-components';
 import { Send20Regular } from '@fluentui/react-icons';
 import { invoke } from '@tauri-apps/api/core';
+import { MessageReceipts } from './MessageReceipts';
 import { zh } from './i18n/zh-CN';
 import { actor, mergeMessages, source } from './logic';
 import type { Message, MessagePage } from './types';
@@ -17,7 +18,7 @@ export function Chat({ project, refresh, onError, reload }: Props) {
   const initial = useRef(true);
   const scroller = useRef<HTMLDivElement>(null);
   const lastRead = useRef(0);
-  const latestId = useRef(0);
+  const earliestId = useRef(0);
   const scrollAfterSend = useRef(false);
   useLayoutEffect(() => {
     if (scrollAfterSend.current && scroller.current) {
@@ -33,7 +34,7 @@ export function Chat({ project, refresh, onError, reload }: Props) {
         if (!active) return;
         let incoming = page.messages;
         let cursor = page.before;
-        while (latestId.current && cursor && incoming[0]?.id > latestId.current) {
+        while (earliestId.current && cursor && incoming[0]?.id > earliestId.current) {
           const gap = await invoke<MessagePage>('message_page', { project, before: cursor });
           if (!active) return;
           incoming = mergeMessages(gap.messages, incoming);
@@ -42,7 +43,7 @@ export function Chat({ project, refresh, onError, reload }: Props) {
         const nearEnd = scrollAfterSend.current || !scroller.current || scroller.current.scrollHeight - scroller.current.scrollTop - scroller.current.clientHeight < 120;
         scrollAfterSend.current = nearEnd;
         setMessages(old => mergeMessages(old, incoming));
-        latestId.current = page.messages.at(-1)?.id || latestId.current;
+        earliestId.current = incoming[0]?.id || earliestId.current;
         if (initial.current) { setBefore(page.before); initial.current = false; }
         setLoading(false);
         const through = page.messages.at(-1)?.id || 0;
@@ -62,6 +63,7 @@ export function Chat({ project, refresh, onError, reload }: Props) {
     try {
       const height = scroller.current?.scrollHeight || 0;
       const page = await invoke<MessagePage>('message_page', { project, before });
+      earliestId.current = page.messages[0]?.id || earliestId.current;
       setMessages(old => mergeMessages(page.messages, old)); setBefore(page.before);
       requestAnimationFrame(() => { if (scroller.current) scroller.current.scrollTop += scroller.current.scrollHeight - height; });
     } catch (e) { onError(String(e)); } finally { setPaging(false); }
@@ -78,7 +80,7 @@ export function Chat({ project, refresh, onError, reload }: Props) {
       {loading ? <Spinner label={zh.loading}/> : !messages.length && <p className="empty-chat">{zh.emptyMessages}</p>}
       {messages.map(m => <article className={`message ${m.sender === 'human' ? 'from-human' : ''}`} key={m.id}>
         <span className={`avatar ${m.sender}`}>{actor(m.sender).slice(0, 1).toUpperCase()}</span>
-        <div className="message-main"><div className="message-heading"><strong>{actor(m.sender)}</strong><span>→ {actor(m.recipient)}</span>{m.sender === 'human' && <Badge size="small" appearance="tint">{source(m.via)}</Badge>}<time>{m.created_at}</time></div><p className="message-body">{m.content}</p></div>
+        <div className="message-main"><div className="message-heading"><strong>{actor(m.sender)}</strong><span className="message-id">#{m.id}</span><span>→ {actor(m.recipient)}</span>{m.sender === 'human' && <Badge size="small" appearance="tint">{source(m.via)}</Badge>}<time>{m.created_at}</time></div><p className="message-body">{m.content}</p><MessageReceipts message={m}/></div>
       </article>)}
     </div>
     <form className="composer" onSubmit={e => { e.preventDefault(); void send(); }}>

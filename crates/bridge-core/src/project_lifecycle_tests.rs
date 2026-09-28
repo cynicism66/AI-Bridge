@@ -44,7 +44,7 @@ fn fixture() -> Result<(Directory, Bridge, String, String, std::path::PathBuf)> 
             [project],
         )?;
         conn.execute(
-            "INSERT INTO reads SELECT id,'codex' FROM messages WHERE project=?",
+            "INSERT INTO reads (message_id,agent) SELECT id,'codex' FROM messages WHERE project=?",
             [project],
         )?;
     }
@@ -200,7 +200,7 @@ fn purge_clears_every_project_table_but_preserves_other_project_and_files() -> R
     );
     assert_eq!(
         conn.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))?,
-        6
+        7
     );
     b.add_project(&p, &settings)?;
     assert!(!AppSettings::load(&settings)?.hidden_projects.contains(&p));
