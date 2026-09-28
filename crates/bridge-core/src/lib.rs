@@ -13,8 +13,11 @@ pub mod templates;
 pub mod transfer;
 // Bridge 的存储、工具和中文格式化；人用导出/交接的交互由 preview 模块处理。
 mod agent_switch;
+pub mod app_settings;
 mod claims;
 pub mod database;
+pub mod desktop;
+pub mod discovery;
 mod format;
 pub mod history;
 pub mod human;

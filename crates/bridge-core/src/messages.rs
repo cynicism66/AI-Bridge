@@ -21,9 +21,20 @@ pub(crate) fn mark_read(conn: &Connection, rows: &[Value], agent: &str) -> Resul
 
 impl Bridge {
     pub fn send(&self, project: &str, sender: &str, recipient: &str, content: &str) -> Result<i64> {
+        self.send_via(project, sender, recipient, content, "mcp")
+    }
+
+    pub(crate) fn send_via(
+        &self,
+        project: &str,
+        sender: &str,
+        recipient: &str,
+        content: &str,
+        via: &str,
+    ) -> Result<i64> {
         let conn = self.database.open()?;
-        conn.execute("INSERT INTO messages (project, sender, recipient, content, created_at) VALUES (?, ?, ?, ?, ?)",
-            params![project, sender, recipient, content, now()?])?;
+        conn.execute("INSERT INTO messages (project, sender, recipient, content, created_at, via) VALUES (?, ?, ?, ?, ?, ?)",
+            params![project, sender, recipient, content, now()?, via])?;
         Ok(conn.last_insert_rowid())
     }
 

@@ -8,12 +8,13 @@ use std::{
     time::Duration,
 };
 
-pub const VERSION: i64 = 4;
-pub const MIGRATIONS: [&str; 4] = [
+pub const VERSION: i64 = 5;
+pub const MIGRATIONS: [&str; 5] = [
     include_str!("../../../migrations/001.sql"),
     include_str!("../../../migrations/002.sql"),
     include_str!("../../../migrations/003.sql"),
     include_str!("../../../migrations/004.sql"),
+    include_str!("../../../migrations/005.sql"),
 ];
 static INITIALIZED: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
@@ -143,10 +144,10 @@ mod tests {
         conn.execute("INSERT INTO messages VALUES (1, '/p', 'claude', 'all', '旧消息', '2020-01-01 00:00:00')", [])?;
         migrate(&mut conn)?;
         migrate(&mut conn)?;
-        assert_eq!(check_version(&conn)?, 4);
+        assert_eq!(check_version(&conn)?, VERSION);
         assert_eq!(query(&conn, "SELECT * FROM events", [])?.len(), 1);
         assert_eq!(query(&conn, "SELECT * FROM messages", [])?.len(), 1);
-        conn.pragma_update(None, "user_version", 5)?;
+        conn.pragma_update(None, "user_version", VERSION + 1)?;
         assert!(migrate(&mut conn)
             .unwrap_err()
             .to_string()

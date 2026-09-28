@@ -3,7 +3,7 @@ use crate::{
     status::SwitchState,
     Bridge,
 };
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 pub fn label(enabled: bool) -> &'static str {
     if enabled {
@@ -105,12 +105,8 @@ impl Bridge {
     }
 
     pub fn post_text(&self, project: &str, content: &str, to: &str) -> Result<String> {
-        let content = content.trim();
-        if content.is_empty() {
-            bail!("消息内容不能为空");
-        }
         let prefix = notice(self.switch_state(Some(project))?, true);
-        let id = self.send(project, "human", to, content)?;
+        let id = self.post_human(project, content, to, crate::desktop::HumanVia::Cli)?;
         Ok(format!(
             "{prefix}消息 #{id} 已发送给 {}。",
             format::recipient(to)

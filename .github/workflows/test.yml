@@ -14,6 +14,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: 安装桌面前端依赖
+        working-directory: app
+        run: npm ci
+      - name: TypeScript 检查
+        working-directory: app
+        run: npm run typecheck
+      - name: 前端逻辑测试
+        working-directory: app
+        run: npm test
+      - name: 构建前端
+        working-directory: app
+        run: npm run build
       - name: 安装 Rust stable
         run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
       - name: 使用 stable
@@ -22,6 +39,10 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - run: cargo build --release -p bridge-mcp
+      - run: cargo build -p ai-bridge
+      - name: 构建无安装包桌面应用
+        working-directory: app
+        run: npm run tauri build -- --no-bundle
       - name: Rust 黑盒一致性测试
         shell: pwsh
         run: |

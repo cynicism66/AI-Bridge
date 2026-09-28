@@ -118,6 +118,6 @@ pub(crate) fn format_event(row: &Value) -> Result<String> {
     Ok(format!(
         "[{}] {} {action}",
         text(row, "created_at"),
-        text(row, "agent")
+        crate::format::sender(text(row, "agent"), text(&data, "via"))
     ))
 }

@@ -11,12 +11,20 @@ pub(crate) fn recipient(value: &str) -> &str {
     }
 }
 
+pub(crate) fn sender(agent: &str, via: &str) -> String {
+    match (agent, via) {
+        ("human", "gui") => "human（软件界面）".into(),
+        ("human", "cli") => "human（命令行）".into(),
+        _ => agent.into(),
+    }
+}
+
 pub(crate) fn message(row: &Value) -> String {
     format!(
         "  #{} [{}] {} → {}：{}",
         row["id"],
         text(row, "created_at"),
-        text(row, "sender"),
+        sender(text(row, "sender"), text(row, "via")),
         recipient(text(row, "recipient")),
         text(row, "content")
     )

@@ -1,0 +1,4 @@
+{
+  "identifier": "main", "description": "主窗口只访问应用命令和文件夹选择器。",
+  "windows": ["main"], "permissions": ["dialog:allow-open"]
+}

@@ -5,8 +5,38 @@
 **让 Claude 和 Codex 在同一个项目里知道彼此在做什么，让人也能参与协作。**
 
 AI Bridge 是一个本地协作公告板，提供任务状态、定向／广播留言、文件认领和交互历史。
-Rust 核心通过 stdio MCP 供 AI 调用，通过命令行供用户操作；数据保存在本机 SQLite 中。
-采用 MIT 许可证，后续桌面软件规划见 [路线图](docs/PLAN.md) 和 [架构](docs/ARCHITECTURE.md)。
+Rust 核心通过 stdio MCP 供 AI 调用；用户可以通过 Windows 桌面窗口、托盘和命令行查看状态、留言及控制开关。数据保存在本机 SQLite 中。
+采用 MIT 许可证。桌面端已提供公告板和聊天，初始化向导等管理页面将在 T08b 提供，安装包将在 T10 提供；进度见 [路线图](docs/PLAN.md) 和 [架构](docs/ARCHITECTURE.md)。
+
+## 桌面窗口与托盘
+
+从源码运行需要 Windows 10/11、WebView2 Runtime、Node.js 24、stable Rust 的 MSVC 工具链与 Visual Studio C++ 编译工具。在项目根目录执行：
+
+```powershell
+cd app
+npm ci
+npm run tauri build -- --no-bundle
+cd ..
+```
+
+生成的程序为 `target/release/ai-bridge.exe`，本阶段没有安装包。首次升级到桌面版前，请退出 Claude、Codex 和旧的 AI Bridge，在独立终端执行 MCP 安装脚本，再启动桌面程序，最后重开两端。数据库会在新版首次访问时自动升到版本 5，保留原数据；旧版 MCP 不支持版本 5，因此必须先更新 MCP 再开启桌面窗口。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-local.ps1
+if ($LASTEXITCODE -ne 0) { throw "安装失败" }
+Start-Process .\target\release\ai-bridge.exe
+```
+
+- 左侧显示 Bridge 项目、未读数和从 Claude/Codex 配置中发现的项目；发现的项目默认关闭，可以开启或隐藏，也可以选择文件夹添加。
+- 公告板显示章程、职务、AI 开关、会话和认领；未初始化的项目会显示命令行提示。
+- 聊天显示所有参与者的消息，可发给所有人、Claude 或 Codex。进入聊天页会标记用户的消息为已读，不影响 AI 的已读状态。GUI 发送的消息标注“软件界面”，CLI 发送的标注“命令行”。
+- 左键点击托盘图标切换窗口显隐，右键菜单可以切换项目或总开关。关闭窗口会隐藏到托盘；彻底退出用托盘菜单的“退出”。
+- 新的 AI/Bridge 消息发给用户或所有人时才通知，点击后打开对应项目聊天；首次启动不补弹历史消息，重启不重复提示已处理消息。系统通知设置或勿扰模式可能抑制提示，未读角标仍保留。
+- 界面跟随系统深浅色。Windows 11 尝试使用 Mica，不支持时回退纯色。
+
+软件设置存放在 `~/.bridge/app.json`，包括隐藏的项目、首次关闭提示和通知高水位。自动发现只取 `~/.claude.json` 的 `projects` 键和 `~/.codex/config.toml` 的项目路径，不保存账号信息，不读取凭证或登录文件，也不修改两端配置。Windows 通知会注册 AI Bridge 自己的用户级通知身份和点击处理器，不需要管理员权限。
+
+开发时在 `app/` 运行 `npm run tauri dev`。隔离手动测试应同时设置 `BRIDGE_DB` 为临时数据库、`BRIDGE_APP_HOME` 为临时用户配置目录。自动测试必须使用临时库，不能以真实数据库作为测试输入。
 
 ## 安装与从源码编译
 
@@ -38,7 +68,7 @@ Windows 产物为 `target/release/bridge-mcp.exe`，Linux 为 `target/release/br
 
 ## 接入 Claude Code 与 Codex
 
-示例使用用户名 `wangq`，请替换为你自己的完整安装路径。
+示例使用用户名 `your-name`，请替换为你自己的完整安装路径。
 只调整现有 `bridge` 条目，不要覆盖配置文件中的其他内容。
 
 Claude Code 的 `~/.claude.json` 中：
@@ -48,7 +78,7 @@ Claude Code 的 `~/.claude.json` 中：
   "mcpServers": {
     "bridge": {
       "type": "stdio",
-      "command": "C:\\Users\\wangq\\.bridge\\bin\\bridge-mcp.exe",
+      "command": "C:\\Users\\your-name\\.bridge\\bin\\bridge-mcp.exe",
       "args": [],
       "env": { "BRIDGE_AGENT": "claude" }
     }
@@ -60,7 +90,7 @@ Codex 的 `~/.codex/config.toml` 中：
 
 ```toml
 [mcp_servers.bridge]
-command = 'C:\Users\wangq\.bridge\bin\bridge-mcp.exe'
+command = 'C:\Users\your-name\.bridge\bin\bridge-mcp.exe'
 args = []
 
 [mcp_servers.bridge.env]
@@ -254,8 +284,10 @@ content = "请等待 {规划} 的首个任务。"
 - `BRIDGE_FAKE_NOW` **只用于测试**，格式 `YYYY-MM-DD HH:MM:SS`，控制业务时间和认领清理比较。
   触发器中的开关／删除认领事件按迁移 SQL 使用 SQLite 的真实本地时间。
 
-当前数据库版本为 4；迁移在事务中完成，旧消息与当前状态会回填到历史表。
-版本 3 保留原消息、已读、开关和历史；旧状态/认领迁为会话 #1，并建立迁移来源会话（PID 0），避免新窗口冒领仍有效的旧认领。版本 4 保留这些数据，新增初始化信息、职务和会话已显示的章程版本；所有旧项目需要用户初始化一次。旧版程序会拒绝写入新数据库，因此升级时需完全退出两端，在独立终端安装新版并由用户初始化，再重开两端；不使用后台安装助手。
+当前数据库版本为 5；迁移在事务中完成，旧消息与当前状态会回填到历史表。
+版本 5 为消息新增 `via` 来源字段（旧数据为 `mcp`），新增消息的历史记录同步保存来源；不会自动重写既有项目章程。新增公共规则会在用户下次初始化时写入章程。
+
+版本 3 保留原消息、已读、开关和历史；旧状态/认领迁为会话 #1，并建立迁移来源会话（PID 0），避免新窗口冒领仍有效的旧认领。版本 4 保留这些数据，新增初始化信息、职务和会话已显示的章程版本；尚未初始化的旧项目需要用户初始化一次。旧版程序会拒绝写入新数据库，因此升级时需完全退出两端，在独立终端安装新版并由用户初始化，再重开两端；不使用后台安装助手。
 每个进程对同一数据库路径只初始化一次，首次并发启动有锁等待及有限重试；更高版本的数据库拒绝写入。
 测试使用独立临时 `BRIDGE_DB`，不读写用户真实数据库。
 
@@ -271,7 +303,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test-install-local
 一致性测试默认使用仓库中的 Rust release 可执行文件；找不到时会提示先编译。
 `BRIDGE_CMD` 可指定单个可执行文件的路径，不能包含命令参数。
 协议定义的唯一现役来源是 `crates/bridge-core/resources/`；测试直接读这份定义，其他响应仅归一化时间后逐字比较。
-CI 仅在 Windows 上运行 Rust 格式检查、Clippy、单元测试、release 编译和黑盒契约测试，并在 Windows PowerShell 5.1 与 PowerShell 7 下验证安装脚本。Linux 和冻结版 Python 不再纳入 CI。
+CI 仅在 Windows 上运行 Rust 格式检查、Clippy、单元测试、release 编译和黑盒契约测试，以及 `npm ci`、TypeScript 检查、Vitest、Vite 和 Tauri 无安装包构建，并在 Windows PowerShell 5.1 与 PowerShell 7 下验证安装脚本。Linux 和冻结版 Python 不再纳入 CI。
 
 ## T05b 安装位置切换与回滚
 

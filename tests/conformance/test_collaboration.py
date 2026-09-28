@@ -29,7 +29,7 @@ class CollaborationTests(ContractCase):
         self.assertEqual(self.cli("read", self.project), "没有未读消息。\n")
         self.assertEqual(self.cli("post", self.project, " 用户留言 ", "--to", "codex"), "消息 #4 已发送给 codex。\n")
         self.check(codex.call("read_messages", project=self.project),
-                   "未读消息（1 条，已标为已读）：\n  #4 [<时间>] human → codex：用户留言")
+                   "未读消息（1 条，已标为已读）：\n  #4 [<时间>] human（命令行） → codex：用户留言")
         self.check(claude.call("read_messages", project=self.project), "没有未读消息。")
 
     def test_atomic_claim_renew_expire_and_owner_release(self):
