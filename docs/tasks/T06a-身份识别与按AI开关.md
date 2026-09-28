@@ -87,7 +87,7 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 - [x] Rust 单个文件不超过 300 行
 
 ## 完成报告
-### 2026-09-28：实现与 CI 验收完成，待正式部署
+### 2026-09-28：实现与 CI 验收完成，安装已完成，待双方验收收尾
 
 - 先完成 T05b 收尾提交 `2662cdf`：补齐用户 Test-Path=True、双方实际调用、GetMappedFileNameW 与完整重启的证据，更新 README/PLAN，并收录 Claude 交接的 T06a 任务和设计修订。
 - 新增 `repository.rs`，只读 `.git`/gitdir/commondir/HEAD，解析普通仓库、相对/绝对 gitdir、worktree、子模块、bare 仓库及子目录查找；异常写一行中文 stderr 并退回原路径。不调用 git，也没有增加依赖。
@@ -118,7 +118,7 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 
 ### 偏离与剩余事项
 
-内部 session_id 和 PID=0 的迁移来源会话是为编号复用时的归属安全补充的存储细节，未改变工具参数或消息投递规则。未实施 T06b，未修改全局配置或 legacy，未升级真实数据库。
+内部 session_id 和 PID=0 的迁移来源会话是为编号复用时的归属安全补充的存储细节，未改变工具参数或消息投递规则。未实施 T06b，未修改全局配置或 legacy。实现及副本演练阶段未升级真实库；用户完成独立终端安装并重启后，真实库已升级至版本 3，见下方部署记录。
 
 短路径修复提交 `aedd14f` 的 CI [36367255616](https://github.com/cynicism66/AI-Bridge/actions/runs/36367255616) 已全部通过。按用户决定 28，工作流精简为 Windows Rust 与两种 PowerShell 安装测试；移除 Ubuntu 和冻结 legacy 的 CI，AGENTS/README 同步说明，精简后的提交 `d639e05` 已通过 [Windows CI 36367508583](https://github.com/cynicism66/AI-Bridge/actions/runs/36367508583)，fmt、clippy、test、release 编译、契约测试、两种 PowerShell 安装测试全部成功。全部 CI 通过后才按任务书请求用户退出两端、安装新版、完整重启，再由双方实际 MCP 调用和 GetMappedFileNameW 验证；部署验收当前仍未勾选。
 
@@ -131,7 +131,7 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 
 ### 部署交接点
 
-截至本次报告，代码、短路径修复、Windows CI 精简均已提交推送并验证，正式安装及双方真实 MCP 验收仍待完成。已在忽略目录 `target/t06a-deploy.ps1` 准备临时后台安装助手：等待 Claude/Codex/Bridge 进程全部退出后调用现有 `scripts/install-local.ps1`，核对安装文件与 release 的 SHA256；等待上限 15 分钟，不主动结束应用，结果写入 `target/t06a-deploy.log`。完整重启后应先检查日志与实际映像，再由双方真实 MCP 调用确认编号、分支和文件夹，最后勾选部署验收。本助手不修改配置，也不主动打开真实数据库。
+首次部署尝试前，代码、短路径修复、Windows CI 精简均已提交推送并验证，当时正式安装及双方真实 MCP 验收仍待完成。已在忽略目录 `target/t06a-deploy.ps1` 准备临时后台安装助手：等待 Claude/Codex/Bridge 进程全部退出后调用现有 `scripts/install-local.ps1`，核对安装文件与 release 的 SHA256；等待上限 15 分钟，不主动结束应用，结果写入 `target/t06a-deploy.log`。完整重启后应先检查日志与实际映像，再由双方真实 MCP 调用确认编号、分支和文件夹，最后勾选部署验收。本助手不修改配置，也不主动打开真实数据库。
 
 ### 重启后的实际核验：安装未完成，改用独立终端
 
@@ -140,3 +140,13 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 - `GetMappedFileNameW` 实测 Claude PID 33008、Codex PID 15292 均加载 `\Device\HarddiskVolume3\Users\wangq\.bridge\bin\bridge-mcp.exe`。位置正确，但内容仍为旧版：安装文件 SHA256 `733632F25E810DEC453D8E5FDFAA4DA4E3BFA03CE824FED1F8D60B48E86BA6B4`；目标 release SHA256 `84EB126E271DF184602746F5294C98B94EA7F9EB47C4A5985B7B5887F32C391E`，二者不同。
 - 只读查询真实库 `PRAGMA user_version` 为 2，尚未升级。没有在真实库运行测试，没有修改全局配置。
 - 已通过公告板 #57 告知 Claude。后续请用户在独立 Windows Terminal 中完全退出 Claude/Codex 后运行 `powershell -NoProfile -ExecutionPolicy Bypass -File "D:\Bridge\scripts\install-local.ps1"`，看到“已安装”再重开双方；以文件哈希、真实 MCP 返回和实际映像为验收证据，不再仅按等待时间判断成功。后台助手未重新启动。
+
+### 独立终端安装后的真实验证
+
+用户按提示完成安装并重启两端后，本轮核验：
+
+- 安装文件 `C:\Users\wangq\.bridge\bin\bridge-mcp.exe` 与 `target/release/bridge-mcp.exe` 的 SHA256 均为 `84EB126E271DF184602746F5294C98B94EA7F9EB47C4A5985B7B5887F32C391E`，新版已实际安装。
+- Codex 本端真实 `bridge_overview` 返回 `codex #2 · 分支 master · 文件夹 d:/bridge`。编号为 #2 是因为迁移来源的 #1 仍在两小时活跃期限内，属于预期分配。
+- `GetMappedFileNameW` 核验 Claude PID 33652（父进程 claude.exe，PID 21744）和 Codex PID 24780（父进程 codex.exe，PID 32840），实际映像均为 `\Device\HarddiskVolume3\Users\wangq\.bridge\bin\bridge-mcp.exe`，对应真实安装目录。
+- 只读核验真实数据库：`user_version=3`，`integrity_check=ok`；没有对真实库运行自动测试。
+- 已在公告板 #58 请求 Claude 本端真实 MCP 验证。当前其进程与映像已确认，但仍需实际调用及回复后才能勾选双方部署验收。
