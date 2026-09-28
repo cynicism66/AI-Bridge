@@ -10,22 +10,22 @@ Rust 核心通过 stdio MCP 供 AI 调用；用户可以通过 Windows 桌面窗
 
 ## 桌面窗口与托盘
 
-从源码运行需要 Windows 10/11、WebView2 Runtime、Node.js 24、stable Rust 的 MSVC 工具链与 Visual Studio C++ 编译工具。在项目根目录执行：
-
-```powershell
-cd app
-npm ci
-npm run tauri build -- --no-bundle
-cd ..
-```
-
-生成的程序为 `target/release/ai-bridge.exe`，本阶段没有安装包。升级前请退出 Claude、Codex 和旧的 AI Bridge，在独立终端执行 MCP 安装脚本并编译桌面程序，再启动桌面程序，最后重开两端。数据库会在新版首次访问时自动升到版本 7，保留消息、已读、认领和交互历史，并为新的已读记录保存读取时间；旧版 MCP 不支持版本 7，因此必须先更新 MCP 再开启桌面窗口。
+从源码运行需要 Windows 10/11、WebView2 Runtime、Node.js 24、stable Rust 的 MSVC 工具链与 Visual Studio C++ 编译工具。升级前先退出 Claude、Codex，并从托盘退出旧的 AI Bridge；然后在独立终端进入项目根目录，执行：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-local.ps1
-if ($LASTEXITCODE -ne 0) { throw "安装失败" }
+if ($LASTEXITCODE -ne 0) { throw "MCP 安装失败" }
+Push-Location .\app
+try {
+    npm ci
+    if ($LASTEXITCODE -ne 0) { throw "前端依赖安装失败" }
+    npm run tauri build -- --no-bundle
+    if ($LASTEXITCODE -ne 0) { throw "桌面编译失败" }
+} finally { Pop-Location }
 Start-Process .\target\release\ai-bridge.exe
 ```
+
+生成的程序为 `target/release/ai-bridge.exe`，本阶段没有安装包。以上步骤完成后再重开 Claude 和 Codex，不需要重新初始化现有项目。数据库会在新版首次访问时自动升到版本 8，保留消息、已读时间、认领和交互历史，并增加待处理消息及卡点确认状态；旧版 MCP 不支持版本 8，因此必须先更新 MCP 再开启桌面窗口。
 
 **桌面程序必须由用户从独立的 Windows Terminal / PowerShell 或资源管理器启动，不要从 Claude/Codex 的 shell 启动。** MSIX 的注册表写入虚拟化可能使通知注册仅对宿主包可见，影响 Windows 通知点击激活；详见 [微软 MSIX 虚拟化说明](https://learn.microsoft.com/en-us/windows/msix/desktop/flexible-virtualization)。此前关于安装脚本可在 AI shell 中执行的说明，只涉及复制 MCP 文件，不代表从该 shell 启动桌面程序也能完成系统通知注册。
 
