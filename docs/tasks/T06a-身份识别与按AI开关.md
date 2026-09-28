@@ -132,3 +132,11 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 ### 部署交接点
 
 截至本次报告，代码、短路径修复、Windows CI 精简均已提交推送并验证，正式安装及双方真实 MCP 验收仍待完成。已在忽略目录 `target/t06a-deploy.ps1` 准备临时后台安装助手：等待 Claude/Codex/Bridge 进程全部退出后调用现有 `scripts/install-local.ps1`，核对安装文件与 release 的 SHA256；等待上限 15 分钟，不主动结束应用，结果写入 `target/t06a-deploy.log`。完整重启后应先检查日志与实际映像，再由双方真实 MCP 调用确认编号、分支和文件夹，最后勾选部署验收。本助手不修改配置，也不主动打开真实数据库。
+
+### 重启后的实际核验：安装未完成，改用独立终端
+
+- 本轮用户重开客户端后，Codex 真实 `bridge_overview` 调用成功，但身份仍只有 `codex`，没有 T06a 的编号、分支和文件夹，因此部署验收不通过。
+- `target/t06a-deploy.log` 只有 `2026-09-28 09:54:58 WAITING`，未出现 INSTALLING、SUCCESS 或 FAILED。助手 PID 33292 已不存在。退出原因没有日志证据，可能被宿主进程生命周期清理，不能视为已完成或正常超时。此前“等待约 30 秒”只是时间估计，不是安装成功判据，也未验证后台助手能跨 Codex 退出存活。
+- `GetMappedFileNameW` 实测 Claude PID 33008、Codex PID 15292 均加载 `\Device\HarddiskVolume3\Users\wangq\.bridge\bin\bridge-mcp.exe`。位置正确，但内容仍为旧版：安装文件 SHA256 `733632F25E810DEC453D8E5FDFAA4DA4E3BFA03CE824FED1F8D60B48E86BA6B4`；目标 release SHA256 `84EB126E271DF184602746F5294C98B94EA7F9EB47C4A5985B7B5887F32C391E`，二者不同。
+- 只读查询真实库 `PRAGMA user_version` 为 2，尚未升级。没有在真实库运行测试，没有修改全局配置。
+- 已通过公告板 #57 告知 Claude。后续请用户在独立 Windows Terminal 中完全退出 Claude/Codex 后运行 `powershell -NoProfile -ExecutionPolicy Bypass -File "D:\Bridge\scripts\install-local.ps1"`，看到“已安装”再重开双方；以文件哈希、真实 MCP 返回和实际映像为验收证据，不再仅按等待时间判断成功。后台助手未重新启动。
