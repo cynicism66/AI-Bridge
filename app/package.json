@@ -2,5 +2,5 @@
   "name": "ai-bridge", "version": "0.1.0", "private": true, "type": "module",
   "scripts": { "dev": "vite --host 127.0.0.1", "build": "tsc --noEmit && vite build", "typecheck": "tsc --noEmit", "test": "vitest run", "tauri": "tauri" },
   "dependencies": { "react": "^19.0.0", "react-dom": "^19.0.0", "@fluentui/react-components": "^9.0.0", "@fluentui/react-icons": "^2.0.0", "@tauri-apps/api": "^2.0.0", "@tauri-apps/plugin-dialog": "^2.0.0", "@tauri-apps/plugin-notification": "^2.0.0" },
-  "devDependencies": { "vite": "^7.0.0", "@vitejs/plugin-react": "^5.0.0", "typescript": "^5.0.0", "vitest": "^3.0.0", "@tauri-apps/cli": "^2.0.0", "@types/react": "^19.0.0", "@types/react-dom": "^19.0.0", "@types/node": "^24.0.0" }
+  "devDependencies": { "vite": "^7.0.0", "@vitejs/plugin-react": "^5.0.0", "typescript": "^5.0.0", "vitest": "^3.0.0", "@tauri-apps/cli": "^2.0.0", "@types/react": "^19.0.0", "@types/react-dom": "^19.0.0", "@types/node": "^24.0.0", "jsdom": "^26.1.0" }
 }

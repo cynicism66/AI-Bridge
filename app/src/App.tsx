@@ -23,7 +23,8 @@ export function App() {
     return () => media.removeEventListener('change', changed);
   }, []);
   const project = w.data?.projects.find(p => p.project === w.project);
-  return <FluentProvider theme={dark ? webDarkTheme : webLightTheme} className={`shell ${dark ? 'dark' : ''}`}>
+  return <FluentProvider theme={dark ? webDarkTheme : webLightTheme} className={`app-theme ${dark ? 'dark' : ''}`}>
+    <div className="shell">
     {w.data && <Sidebar data={w.data} selected={w.project} busy={w.busy} select={w.select} run={w.run} init={setWizard} settings={() => w.setTab('settings')}/>}
     <main>
       {w.error && <MessageBar intent="error"><MessageBarBody>{w.error}</MessageBarBody><MessageBarActions containerAction={<Button appearance="transparent" icon={<Dismiss20Regular/>} aria-label={zh.dismiss} onClick={() => w.setError('')}/>}><Button onClick={() => void w.run(w.reload)}>{zh.retry}</Button></MessageBarActions></MessageBar>}
@@ -41,5 +42,6 @@ export function App() {
       </>}
     </main>
     {wizard && <InitWizard key={wizard} project={wizard} close={() => setWizard(null)} done={w.reload}/>}
+    </div>
   </FluentProvider>;
 }
