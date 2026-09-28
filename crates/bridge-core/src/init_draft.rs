@@ -113,8 +113,9 @@ impl PreparedInit {
             return Err(e.into());
         }
         Ok(format!(
-            "协作初始化完成：{}，章程 v{version}（{project}）",
-            self.template.name
+            "协作初始化完成：{}，章程 v{version}（{}）",
+            self.template.name,
+            crate::display_path(project)
         ))
     }
 }

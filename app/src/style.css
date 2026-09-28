@@ -30,3 +30,5 @@ main { min-width: 0; display: flex; flex-direction: column; flex: 1; }.project-h
 .hidden-row span, .path-value { overflow-wrap: anywhere; }
 .event-description { display: flex; align-items: start; gap: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .event-description svg { flex-shrink: 0; margin-top: 2px; }
+.danger-menu { color: var(--colorPaletteRedForeground1) !important; }
+.danger-button { background: var(--colorPaletteRedBackground3) !important; color: var(--colorNeutralForegroundOnBrand) !important; }

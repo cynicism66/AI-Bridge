@@ -39,7 +39,7 @@ impl Bridge {
             let enabled = row["enabled"].as_bool().unwrap_or(false);
             lines.push(format!(
                 "  {}：项目开关 {}，有效状态 {}，最近活动 {}",
-                text(&row, "project"),
+                crate::display_path(text(&row, "project")),
                 label(enabled),
                 label(
                     self.access_state(Some(text(&row, "project")), None)?
@@ -74,9 +74,10 @@ impl Bridge {
                 "提示：项目目录不存在，已按指定路径保存开关。\n"
             };
             Ok(format!(
-                "{}{warning}项目开关：{}（{project}）",
+                "{}{warning}项目开关：{}（{}）",
                 notice(state, true),
-                label(state.project_enabled)
+                label(state.project_enabled),
+                crate::display_path(project)
             ))
         } else {
             Ok(format!(

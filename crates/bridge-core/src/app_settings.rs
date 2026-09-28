@@ -24,6 +24,12 @@ impl Default for AppSettings {
     }
 }
 impl AppSettings {
+    pub fn from_env_path() -> Result<PathBuf> {
+        let home = std::env::var_os("BRIDGE_APP_HOME")
+            .or_else(|| std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }))
+            .context("无法确定软件设置目录")?;
+        Ok(Self::path(Path::new(&home)))
+    }
     pub fn path(home: &Path) -> PathBuf {
         home.join(".bridge/app.json")
     }

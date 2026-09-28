@@ -1,6 +1,6 @@
 import sqlite3
 from contextlib import closing
-from .support import ContractCase, GLOBAL_OFF, PROJECT_OFF, normalized
+from .support import ContractCase, GLOBAL_OFF, PROJECT_OFF, normalized, display_path
 from .test_sessions import content
 
 
@@ -15,7 +15,7 @@ class AgentSwitchTests(ContractCase):
         server = self.session()
         server.call("update_status", project=self.project, task="先前任务")
         server.call("claim_files", project=self.project, files=["held"])
-        self.assertEqual(self.cli("agent", self.project, "codex", "off"), f"AI 开关：codex 未开启（{self.project}）\n")
+        self.assertEqual(self.cli("agent", self.project, "codex", "off"), f"AI 开关：codex 未开启（{display_path(self.project)}）\n")
         before = self.snapshot()
         expected = "Bridge 在此项目中未对你（codex）开启（由用户控制）。请忽略协作规则，正常工作；本次会话不必再调用 Bridge 工具。"
         for tool in ("bridge_overview", "update_status", "claim_files", "release_files", "send_message", "read_messages"):

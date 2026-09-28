@@ -26,6 +26,12 @@ def normalized(text):
     return re.sub(r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d", "<时间>", text)
 
 
+def display_path(value):
+    if re.match(r'^[a-zA-Z]:', value):
+        return value[0].upper() + value[1:].replace('/', '\\')
+    return value.replace('/', '\\') if value.startswith('//') else value
+
+
 class Session:
     def __init__(self, env, command=COMMAND):
         self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,

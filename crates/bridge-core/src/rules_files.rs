@@ -43,7 +43,10 @@ impl RulesFiles {
         for name in ["AGENTS.md", "CLAUDE.md"] {
             let path = root.join(name);
             if std::fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_symlink()) {
-                bail!("规则文件不能是符号链接：{}", path.display());
+                bail!(
+                    "规则文件不能是符号链接：{}",
+                    crate::display_path(&path.to_string_lossy())
+                );
             }
             let original = match std::fs::read(&path) {
                 Ok(bytes) => Some(bytes),

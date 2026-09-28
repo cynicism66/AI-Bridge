@@ -66,7 +66,7 @@ pub fn deliver(app: &tauri::AppHandle) -> anyhow::Result<()> {
         for m in batch {
             // 在发送前持久化高水位；系统通知失败也不在每轮重复骚扰。
             // 异常退出可能跳过一条提示，消息和未读角标始终保留。
-            let mut settings = s.settings.clone();
+            let mut settings = bridge_core::app_settings::AppSettings::load(&s.settings_path)?;
             settings.last_notified_id = Some(m.id);
             settings.save(&s.settings_path)?;
             s.settings = settings;
@@ -78,7 +78,7 @@ pub fn deliver(app: &tauri::AppHandle) -> anyhow::Result<()> {
                 &format!("{} · {}", text("appName"), m.sender),
                 &format!(
                     "{}\n{}",
-                    m.project,
+                    bridge_core::display_path(&m.project),
                     m.content.chars().take(160).collect::<String>()
                 ),
                 Some(m.project),

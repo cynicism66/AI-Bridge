@@ -42,6 +42,17 @@ enum Command {
     Off(Switch),
     /// 显示全局开关及所有项目状态
     Status,
+    /// 从列表移除并关闭协作，保留全部协作数据（仅用户操作）
+    Forget(Project),
+    /// 彻底删除 Bridge 项目数据并隐藏，不修改项目文件或其他 AI 配置（仅用户操作）
+    Purge {
+        #[command(flatten)]
+        project: Project,
+        #[arg(long)]
+        yes: bool,
+        #[arg(long)]
+        force: bool,
+    },
     /// 设置项目内指定 AI 的开关
     Agent {
         #[arg(num_args = 2..=3, value_names = ["项目或AI", "AI或开关", "开关"])]
@@ -126,7 +137,7 @@ enum Command {
         limit: i64,
         #[arg(long)]
         agent: Option<String>,
-        #[arg(long, value_parser = ["status", "message", "claim", "release", "expire", "switch", "agent_switch", "init", "role", "handover", "permission"])]
+        #[arg(long, value_parser = ["status", "message", "claim", "release", "expire", "switch", "agent_switch", "init", "role", "handover", "permission", "forget"])]
         kind: Option<String>,
     },
 }
@@ -224,6 +235,20 @@ pub fn run(bridge: &Bridge) -> Result<Option<String>> {
             bridge.transfer_text(&project.resolve()?, None, Some(&to), yes)?
         }
         Command::Status => bridge.status_text()?,
+        Command::Forget(project) => bridge.forget_project(
+            &project.resolve()?,
+            &bridge_core::app_settings::AppSettings::from_env_path()?,
+        )?,
+        Command::Purge {
+            project,
+            yes,
+            force,
+        } => bridge.purge_project(
+            &project.resolve()?,
+            &bridge_core::app_settings::AppSettings::from_env_path()?,
+            yes,
+            force,
+        )?,
         Command::Show {
             project,
             include_older,

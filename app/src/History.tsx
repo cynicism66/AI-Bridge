@@ -6,7 +6,7 @@ import { zh } from './i18n/zh-CN';
 import { filterError } from './wizardLogic';
 import type { HistoryFilter, HistoryPage, Management } from './types';
 const empty: HistoryFilter = { agents: [], kinds: [], from: '', until: '', keyword: '' };
-const kinds = { status: zh.eventStatus, message: zh.eventMessage, claim: zh.eventClaim, release: zh.eventRelease, expire: zh.eventExpire, switch: zh.eventSwitch, agent_switch: zh.eventAgentSwitch, init: zh.eventInit, role: zh.eventRole, handover: zh.eventHandover, permission: zh.eventPermission };
+const kinds = { status: zh.eventStatus, message: zh.eventMessage, claim: zh.eventClaim, release: zh.eventRelease, expire: zh.eventExpire, switch: zh.eventSwitch, agent_switch: zh.eventAgentSwitch, init: zh.eventInit, role: zh.eventRole, handover: zh.eventHandover, forget: zh.eventForget, permission: zh.eventPermission };
 const toggle = (values: string[], value: string) => values.includes(value) ? values.filter(x => x !== value) : [...values, value];
 export function History({ project, refresh, onError }: { project: string; refresh: number; onError: (e: string) => void }) {
   const [draft, setDraft] = useState<HistoryFilter>(empty);

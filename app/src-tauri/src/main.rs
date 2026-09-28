@@ -1,10 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod browser;
 mod commands;
 mod locale;
 mod management;
 #[cfg(windows)]
 mod notification_activation;
 mod notifications;
+mod project_commands;
 mod state;
 mod tray;
 use state::Shared;
@@ -56,6 +58,11 @@ fn main() {
             commands::set_switch,
             commands::hide_project,
             commands::window_ready,
+            project_commands::add_project,
+            project_commands::forget_project,
+            project_commands::purge_info,
+            project_commands::purge_project,
+            project_commands::open_project_folder,
             management::management,
             management::template_info,
             management::preview_init,
@@ -76,6 +83,10 @@ fn main() {
                 && std::env::var_os("BRIDGE_UI_TEST").is_some()
                 && std::env::var_os("BRIDGE_DB").is_some()
                 && std::env::var_os("BRIDGE_APP_HOME").is_some();
+            // 隔离调试实例可验证与 release 相同的原生限制，且不注册系统通知。
+            let allow_debug = cfg!(debug_assertions)
+                && !(isolated && std::env::var_os("BRIDGE_UI_TEST_RELEASE").is_some());
+            browser::configure(app.handle(), allow_debug)?;
             if !isolated && notification_activation::register(app.handle()).is_err() {
                 report(app.handle(), locale::text("notificationFailed").into());
             }
@@ -129,7 +140,8 @@ fn main() {
                         .lock()
                         .map_err(|_| anyhow::anyhow!(locale::text("stateUnavailable")))?;
                     if !s.settings.close_tip_shown {
-                        let mut settings = s.settings.clone();
+                        let mut settings =
+                            bridge_core::app_settings::AppSettings::load(&s.settings_path)?;
                         settings.close_tip_shown = true;
                         settings.save(&s.settings_path)?;
                         s.settings = settings;

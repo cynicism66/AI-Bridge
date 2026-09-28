@@ -65,7 +65,7 @@ impl AppState {
     }
     pub fn refresh(&mut self, force: bool) -> Result<bool> {
         let version = self.detector.version()?;
-        let stamp = [".claude.json", ".codex/config.toml"]
+        let stamp = [".claude.json", ".codex/config.toml", ".bridge/app.json"]
             .iter()
             .map(|p| {
                 std::fs::metadata(self.home.join(p))
@@ -78,7 +78,13 @@ impl AppState {
         if !force && version == self.version && stamp == self.config_stamp && !expired {
             return Ok(false);
         }
-        self.projects = self.bridge.project_list()?;
+        self.settings = AppSettings::load(&self.settings_path)?;
+        self.projects = self
+            .bridge
+            .project_list()?
+            .into_iter()
+            .filter(|p| !self.settings.hidden_projects.contains(&p.project))
+            .collect();
         self.global = self.bridge.switch_state(None)?.global_enabled;
         let known: BTreeSet<_> = self.projects.iter().map(|p| p.project.clone()).collect();
         self.discovered = discover(&self.home, &known, &self.settings.hidden_projects);

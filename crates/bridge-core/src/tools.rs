@@ -159,7 +159,7 @@ impl Bridge {
         let transaction =
             conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         purge(&transaction)?;
-        let statuses = query(
+        let mut statuses = query(
             &transaction,
             "SELECT s.*, COALESCE(w.branch, '-') AS branch, COALESCE(w.worktree,s.project) AS worktree, COALESCE(w.last_active,s.updated_at) AS last_active FROM status s LEFT JOIN sessions w ON w.id=s.session_id AND w.project=s.project WHERE s.project = ? ORDER BY s.agent,s.session_no",
             [project],
@@ -174,6 +174,11 @@ impl Bridge {
             messages::mark_read(&transaction, &unread, agent)?;
         }
         transaction.commit()?;
+        if agent == "human" {
+            for row in &mut statuses {
+                row["worktree"] = crate::display_path(format::text(row, "worktree")).into();
+            }
+        }
         let statuses = format::statuses(&statuses, include_older)?;
         let identity = if agent == "human" {
             agent.to_owned()
@@ -188,6 +193,11 @@ impl Bridge {
             ""
         };
         let charter = self.charter_overview(project, agent)?;
+        let project = if agent == "human" {
+            crate::display_path(project)
+        } else {
+            project.into()
+        };
         Ok(format!("项目：{project}\n你的身份：{identity}\n\n{charter}\n== 各方状态 ==\n{statuses}\n\n== 文件认领 ==\n{claims}\n\n== 给你的未读消息（{} 条）==\n{messages}{tip}", unread.len()))
     }
 }

@@ -1,3 +1,4 @@
+import { displayPath } from './projectMenuLogic';
 import { useEffect, useState } from 'react';
 import { Badge, Button, FluentProvider, MessageBar, MessageBarActions, MessageBarBody, Spinner, Tab as FluentTab, TabList, webDarkTheme, webLightTheme } from '@fluentui/react-components';
 import { Dismiss20Regular, Board20Regular, Chat20Regular, History20Regular, Settings20Regular } from '@fluentui/react-icons';
@@ -27,7 +28,7 @@ export function App() {
     <main>
       {w.error && <MessageBar intent="error"><MessageBarBody>{w.error}</MessageBarBody><MessageBarActions containerAction={<Button appearance="transparent" icon={<Dismiss20Regular/>} aria-label={zh.dismiss} onClick={() => w.setError('')}/>}><Button onClick={() => void w.run(w.reload)}>{zh.retry}</Button></MessageBarActions></MessageBar>}
       {!w.data ? <div className="center"><Spinner label={zh.loading}/></div> : !w.project ? w.tab === 'settings' ? <Settings project={null} refresh={w.refresh} init={() => {}} done={w.reload} onError={w.setError}/> : <div className="center"><Board20Regular/><h2>{zh.emptySelection}</h2></div> : <>
-        <header className="project-header"><div><div className="eyebrow">{zh.appName} / {zh.projects}</div><h1>{projectName(w.project)}<Badge color={project?.enabled ? 'success' : 'subtle'} appearance="tint">{project?.enabled ? zh.enabled : zh.disabled}</Badge>{!project?.initialized && <Badge color="warning" appearance="tint">{zh.pending}</Badge>}</h1><p title={w.project}>{w.project}</p></div></header>
+        <header className="project-header"><div><div className="eyebrow">{zh.appName} / {zh.projects}</div><h1>{projectName(w.project)}<Badge color={project?.enabled ? 'success' : 'subtle'} appearance="tint">{project?.enabled ? zh.enabled : zh.disabled}</Badge>{!project?.initialized && <Badge color="warning" appearance="tint">{zh.pending}</Badge>}</h1><p title={displayPath(w.project)}>{displayPath(w.project)}</p></div></header>
         <TabList selectedValue={w.tab} onTabSelect={(_, d) => w.setTab(d.value as Tab)} className="tabs">
           <FluentTab value="board" icon={<Board20Regular/>}>{zh.board}</FluentTab><FluentTab value="chat" icon={<Chat20Regular/>}>{zh.chat}{!!project?.unread && <Badge size="small" color="danger">{project.unread}</Badge>}</FluentTab><FluentTab value="history" icon={<History20Regular/>}>{zh.history}</FluentTab><FluentTab value="settings" icon={<Settings20Regular/>}>{zh.settings}</FluentTab>
         </TabList>

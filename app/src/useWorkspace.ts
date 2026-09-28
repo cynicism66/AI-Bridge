@@ -17,7 +17,7 @@ export function useWorkspace() {
     revision.current = next.revision;
     setData(next);
     setRefresh(n => n + 1);
-    setProject(p => p || next.projects[0]?.project || next.discovered[0]?.project || null);
+    setProject(p => p && [...next.projects, ...next.discovered].some(item => item.project === p) ? p : next.projects[0]?.project || next.discovered[0]?.project || null);
   }, []);
   useEffect(() => {
     let active = true;

@@ -3,7 +3,7 @@ import sqlite3
 from contextlib import closing
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from .support import ContractCase, COMMAND, normalized
+from .support import ContractCase, COMMAND, normalized, display_path
 
 
 def key(path):
@@ -105,7 +105,7 @@ class SessionTests(ContractCase):
         (self.directory / ".git").write_text("gitdir: missing\n", encoding="utf-8")
         result = subprocess.run([*COMMAND, "on", self.project], env=self.env, capture_output=True, timeout=20)
         self.assertEqual(result.returncode, 0)
-        self.assertIn(f"项目开关：已开启（{self.project}）", result.stdout.decode("utf-8"))
+        self.assertIn(f"项目开关：已开启（{display_path(self.project)}）", result.stdout.decode("utf-8"))
         self.assertIn("退回原路径", result.stderr.decode("utf-8"))
         self.assertEqual(len(result.stderr.splitlines()), 1)
         # 通过 CLI 使用无诊断的父路径无法初始化坏 .git；直接捕获预期 stderr。

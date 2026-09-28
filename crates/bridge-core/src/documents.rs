@@ -14,12 +14,13 @@ fn section(out: &mut String, title: &str, body: &str) {
 }
 pub fn render(conn: &Connection, project: &str, time: &str, handover: bool) -> Result<String> {
     let mut out = format!(
-        "# {}\n\n项目：{project}\n导出时间：{time}\n",
+        "# {}\n\n项目：{}\n导出时间：{time}\n",
         if handover {
             "项目交接"
         } else {
             "Bridge 协作记录"
-        }
+        },
+        crate::display_path(project)
     );
     if let Some(info) = collaboration::load(conn, project)? {
         section(&mut out, "项目目标", &info.goal);
@@ -53,7 +54,7 @@ pub fn render(conn: &Connection, project: &str, time: &str, handover: bool) -> R
                 text(r, "agent"),
                 r["session_no"],
                 text(r, "branch"),
-                text(r, "worktree"),
+                crate::display_path(text(r, "worktree")),
                 text(r, "task"),
                 text(r, "progress"),
                 text(r, "blockers"),

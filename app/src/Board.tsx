@@ -1,3 +1,4 @@
+import { displayPath } from './projectMenuLogic';
 import { useEffect, useState } from 'react';
 import { Badge, Button, Card, Spinner, Switch } from '@fluentui/react-components';
 import { invoke } from '@tauri-apps/api/core';
@@ -39,6 +40,6 @@ function SessionCards({ sessions }: { sessions: Session[] }) {
     <div className="card-heading"><strong>{s.agent} <span className="muted">#{s.session_no}</span></strong><Badge appearance="outline">{s.branch}</Badge></div>
     <p className="session-task">{s.task || zh.noTask}</p>
     <dl>{[[zh.progress, s.progress], [zh.blockers, s.blockers], [zh.nextStep, s.next_step]].filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-    <div className="session-footer"><span title={s.worktree}>{s.worktree}</span><time>{s.updated_at}</time></div>
+    <div className="session-footer"><span title={displayPath(s.worktree)}>{displayPath(s.worktree)}</span><time>{s.updated_at}</time></div>
   </Card>)}</div>;
 }

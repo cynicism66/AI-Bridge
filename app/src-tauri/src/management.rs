@@ -172,7 +172,7 @@ pub struct SettingsPatch {
 #[tauri::command]
 pub fn save_settings(state: State<'_, Shared>, patch: SettingsPatch) -> Reply<()> {
     let mut s = lock(&state)?;
-    let mut prefs = s.settings.clone();
+    let mut prefs = crate::project_commands::fresh_settings(&s.settings_path)?;
     if let Some(enabled) = patch.notifications_enabled {
         prefs.notifications_enabled = enabled;
         prefs.last_notified_id = Some(s.bridge.latest_message_id().map_err(error)?);

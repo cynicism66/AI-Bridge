@@ -5,7 +5,11 @@ use rusqlite::params;
 impl Bridge {
     pub fn agent_toggle_text(&self, project: &str, agent: &str, enabled: bool) -> Result<String> {
         let agent = self.set_agent_enabled(project, agent, enabled)?;
-        Ok(format!("AI 开关：{agent} {}（{project}）", label(enabled)))
+        Ok(format!(
+            "AI 开关：{agent} {}（{}）",
+            label(enabled),
+            crate::display_path(project)
+        ))
     }
 
     pub fn set_agent_enabled(&self, project: &str, agent: &str, enabled: bool) -> Result<String> {

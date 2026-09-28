@@ -100,7 +100,7 @@ pub fn set_switch(
 #[tauri::command]
 pub fn hide_project(state: State<'_, Shared>, project: String) -> Reply<()> {
     let mut s = lock(&state)?;
-    let mut settings = s.settings.clone();
+    let mut settings = crate::project_commands::fresh_settings(&s.settings_path)?;
     settings.hidden_projects.insert(key(&project)?);
     settings.save(&s.settings_path).map_err(error)?;
     s.settings = settings;

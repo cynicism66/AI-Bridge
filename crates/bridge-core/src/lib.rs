@@ -27,6 +27,7 @@ pub mod human;
 pub mod management;
 mod messages;
 pub mod paths;
+pub mod project_lifecycle;
 pub mod protocol;
 pub mod repository;
 mod sessions;
@@ -38,6 +39,11 @@ use chrono::{Local, NaiveDateTime};
 use database::Database;
 
 pub const TIME_FMT: &str = "%Y-%m-%d %H:%M:%S";
+
+/// 只规范化显示，不改变数据库键或文件读写路径。
+pub fn display_path(path: &str) -> String {
+    preview::display_path(std::path::Path::new(path))
+}
 
 pub fn now() -> Result<String> {
     match std::env::var("BRIDGE_FAKE_NOW") {
@@ -81,5 +87,7 @@ mod test_support;
 mod history_page_tests;
 #[cfg(test)]
 mod management_tests;
+#[cfg(test)]
+mod project_lifecycle_tests;
 #[cfg(test)]
 mod template_tests;

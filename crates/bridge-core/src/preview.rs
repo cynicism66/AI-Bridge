@@ -9,10 +9,21 @@ use std::{
 // 仅用于显示；文件读写与路径校验继续使用原始路径。
 pub fn display_path(path: &Path) -> String {
     let text = path.to_string_lossy();
-    if let Some(unc) = text.strip_prefix(r"\\?\UNC\") {
+    let text = if let Some(unc) = text.strip_prefix(r"\\?\UNC\") {
         format!(r"\\{unc}")
     } else {
         text.strip_prefix(r"\\?\").unwrap_or(&text).to_owned()
+    };
+    if text.as_bytes().get(1) == Some(&b':') && text.as_bytes()[0].is_ascii_alphabetic() {
+        format!(
+            "{}{}",
+            text[..1].to_ascii_uppercase(),
+            text[1..].replace('/', "\\")
+        )
+    } else if text.starts_with("//") || text.starts_with(r"\\") {
+        text.replace('/', "\\")
+    } else {
+        text
     }
 }
 
@@ -77,6 +88,8 @@ mod tests {
             (r"\\?\UNC\server\share\预览.md", r"\\server\share\预览.md"),
             (r"C:\目录\预览.md", r"C:\目录\预览.md"),
             (r"\\server\share\预览.md", r"\\server\share\预览.md"),
+            (r"d:/bridge-demo\AGENTS.md", r"D:\bridge-demo\AGENTS.md"),
+            ("//server/share/预览.md", r"\\server\share\预览.md"),
         ] {
             assert_eq!(display_path(Path::new(raw)), expected);
         }

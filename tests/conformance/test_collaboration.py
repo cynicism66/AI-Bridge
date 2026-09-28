@@ -1,6 +1,6 @@
 import os
 
-from .support import ContractCase, normalized
+from .support import ContractCase, normalized, display_path
 
 
 class CollaborationTests(ContractCase):
@@ -77,12 +77,12 @@ class CollaborationTests(ContractCase):
             self.check(server.call("bridge_overview", project=invalid), "出错：" + message, True)
             self.assertIn(message, self.cli("on", invalid, ok=False))
         converted = "/" + self.project[0] + self.project[2:]
-        self.assertEqual(self.cli("on", converted), f"项目开关：已开启（{self.project}）\n")
+        self.assertEqual(self.cli("on", converted), f"项目开关：已开启（{display_path(self.project)}）\n")
         self.initialize()
         self.check(server.call("update_status", project=converted, task="bash"), "状态已更新（codex）。")
         double = self.project.replace(":/", "://")
         self.check(server.call("update_status", project=double, task="双斜杠"), "状态已更新（codex）。")
-        self.assertEqual(self.cli("on", double), f"项目开关：已开启（{self.project}）\n")
+        self.assertEqual(self.cli("on", double), f"项目开关：已开启（{display_path(self.project)}）\n")
         unc = "\\\\server\\share\\project"
         self.cli("on", unc)
         self.initialize(unc)
