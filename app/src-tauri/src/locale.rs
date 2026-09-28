@@ -19,3 +19,12 @@ pub fn text(key: &str) -> &'static str {
 fn key_fallback() -> &'static str {
     "AI Bridge"
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn shared_resource_is_valid_json_for_native_consumers() {
+        assert_eq!(super::text("actionTitle"), "等你处理");
+        assert_eq!(super::text("copyTitle"), "项目内协作记录副本");
+    }
+}

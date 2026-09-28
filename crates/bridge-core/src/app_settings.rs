@@ -8,6 +8,7 @@ use std::{
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppSettings {
+    pub notified_actions: BTreeSet<String>,
     pub record_copies: BTreeMap<String, RecordCopy>,
     pub notifications_enabled: bool,
     pub hidden_projects: BTreeSet<String>,
@@ -18,6 +19,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             notifications_enabled: true,
+            notified_actions: BTreeSet::new(),
             record_copies: BTreeMap::new(),
             hidden_projects: BTreeSet::new(),
             close_tip_shown: false,

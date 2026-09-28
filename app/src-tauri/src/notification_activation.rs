@@ -19,7 +19,16 @@ const CLASS_TEXT: &str = "{6E498951-8DC6-492C-8E1D-B32D6B40D87B}";
 pub fn navigate(app: &tauri::AppHandle, project: Option<String>) {
     if let Ok(mut s) = app.state::<Shared>().lock() {
         // 通知参数仅用于导航，必须已经存在于本地项目列表；从不执行它。
-        s.target = project.filter(|p| s.projects.iter().any(|known| &known.project == p));
+        let target = project.map(|p| match p.strip_prefix("attention:") {
+            Some(path) => (path.to_owned(), true),
+            None => (p, false),
+        });
+        if let Some((p, attention)) =
+            target.filter(|(p, _)| s.projects.iter().any(|known| &known.project == p))
+        {
+            s.target = Some(p);
+            s.target_action = attention;
+        }
     }
     crate::show(app);
 }

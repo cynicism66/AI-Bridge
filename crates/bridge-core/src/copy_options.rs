@@ -16,9 +16,15 @@ pub fn protection(root: &Path) -> Result<CopyProtection> {
         });
     }
     let mut command = Command::new("git");
-    command
-        .current_dir(root)
-        .args(["check-ignore", "--quiet", "--no-index", "--", ".bridge/"]);
+    command.current_dir(root).args([
+        "-c",
+        "core.fsmonitor=false",
+        "check-ignore",
+        "--quiet",
+        "--no-index",
+        "--",
+        ".bridge/",
+    ]);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -36,6 +42,7 @@ pub fn protection(root: &Path) -> Result<CopyProtection> {
             git: true,
             ignored: false,
         }),
+        _ if String::from_utf8_lossy(&output.stderr).contains("dubious ownership") => bail!("这个仓库的所有者和当前用户不同，Git 出于安全原因拒绝检查。如果你信任这个目录，可以在终端运行：git config --global --add safe.directory '{}'，然后点“重新检查”。", root.to_string_lossy().replace('\'', "''")),
         _ => bail!(
             "Git 无法检查副本忽略规则：{}",
             String::from_utf8_lossy(&output.stderr).trim()

@@ -37,3 +37,12 @@ main { min-width: 0; display: flex; flex-direction: column; flex: 1; }.project-h
 
 .message-id { color: var(--colorNeutralForeground3); white-space: nowrap; }
 .message-receipts { color: var(--colorNeutralForeground3); font-size: 12px; padding-top: 6px; }
+
+.action-banner { flex-shrink: 0; background: var(--surface); border-bottom: 2px solid #eb8f23; padding: 12px 24px; }.action-items { max-height: 25vh; overflow: auto; }.action-item p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }.action-banner:focus { outline: 2px solid #eb8f23; outline-offset: -2px; }
+
+.action-banner { max-height: 25vh; overflow: auto; }.action-items { max-height: none; }
+@media(max-height:650px) { .project-header { padding-top:12px; padding-bottom:10px; }.composer { padding-top:8px; padding-bottom:8px; } }
+
+.status-dot.attention { background: #eb8f23; }
+
+.composer textarea { max-height: min(178px, max(78px, calc(100vh - 470px))); }.attention-badge { background-color: #eb8f23 !important; color: #1b1b1b !important; }

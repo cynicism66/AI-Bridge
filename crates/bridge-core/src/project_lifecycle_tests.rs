@@ -34,7 +34,7 @@ fn fixture() -> Result<(Directory, Bridge, String, String, std::path::PathBuf)> 
         let conn = bridge.database.open()?;
         conn.execute("INSERT INTO sessions VALUES (?,?,'codex',1,?,'main',1,'2099-01-01 00:00:00','2099-01-01 00:00:00',1)",params![project,project,project])?;
         conn.execute(
-            "INSERT INTO status VALUES (?,'codex','任务','','','','2099-01-01 00:00:00',1,?)",
+            "INSERT INTO status VALUES (?,'codex','任务','','需要确认','','2099-01-01 00:00:00',1,?)",
             params![project, project],
         )?;
         conn.execute("INSERT INTO claims VALUES (?,'held','codex','','2099-01-01 00:00:00','2099-01-02 00:00:00',1,?)",params![project,project])?;
@@ -200,7 +200,7 @@ fn purge_clears_every_project_table_but_preserves_other_project_and_files() -> R
     );
     assert_eq!(
         conn.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))?,
-        7
+        8
     );
     b.add_project(&p, &settings)?;
     assert!(!AppSettings::load(&settings)?.hidden_projects.contains(&p));

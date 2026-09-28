@@ -48,6 +48,7 @@ pub(crate) fn purge_data(
         [project],
     )?;
     for table in [
+        "action_blockers",
         "status",
         "sessions",
         "messages",

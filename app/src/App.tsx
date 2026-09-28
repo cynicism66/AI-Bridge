@@ -8,12 +8,15 @@ import { Board } from './Board';
 import { InitWizard } from './InitWizard';
 import { History } from './History';
 import { Settings } from './Settings';
+import { ActionBanner } from './ActionBanner';
 import { Chat } from './Chat';
 import { projectName } from './logic';
 import { useWorkspace } from './useWorkspace';
 import type { Tab } from './types';
 export function App() {
   const w = useWorkspace();
+  const [focusMessage,setFocusMessage]=useState<number|null>(null);
+  useEffect(()=>setFocusMessage(null),[w.project]);
   const [wizard, setWizard] = useState<string | null>(null);
   const [dark, setDark] = useState(matchMedia('(prefers-color-scheme: dark)').matches);
   useEffect(() => {
@@ -27,6 +30,7 @@ export function App() {
     <div className="shell">
     {w.data && <Sidebar data={w.data} selected={w.project} busy={w.busy} select={w.select} run={w.run} init={setWizard} settings={() => w.setTab('settings')}/>}
     <main>
+      {w.project && <ActionBanner items={(w.data?.actions || []).filter(a=>a.project===w.project)} focus={w.actionFocus} done={w.reload} onError={w.setError} view={item=>{w.select(item.project,item.kind==='message'?'chat':'board');setFocusMessage(item.kind==='message'?item.id:null);}}/>}
       {w.error && <MessageBar intent="error"><MessageBarBody>{w.error}</MessageBarBody><MessageBarActions containerAction={<Button appearance="transparent" icon={<Dismiss20Regular/>} aria-label={zh.dismiss} onClick={() => w.setError('')}/>}><Button onClick={() => void w.run(w.reload)}>{zh.retry}</Button></MessageBarActions></MessageBar>}
       {!w.data ? <div className="center"><Spinner label={zh.loading}/></div> : !w.project ? w.tab === 'settings' ? <Settings project={null} refresh={w.refresh} init={() => {}} done={w.reload} onError={w.setError}/> : <div className="center"><Board20Regular/><h2>{zh.emptySelection}</h2></div> : <>
         <header className="project-header"><div><div className="eyebrow">{zh.appName} / {zh.projects}</div><h1>{projectName(w.project)}<Badge color={project?.enabled ? 'success' : 'subtle'} appearance="tint">{project?.enabled ? zh.enabled : zh.disabled}</Badge>{!project?.initialized && <Badge color="warning" appearance="tint">{zh.pending}</Badge>}</h1><p title={displayPath(w.project)}>{displayPath(w.project)}</p></div></header>
@@ -35,7 +39,7 @@ export function App() {
         </TabList>
         <div className={`tab-content ${w.tab === 'chat' ? 'chat-tab' : ''}`}>
           {w.tab === 'board' && <Board key={w.project} project={w.project} refresh={w.refresh} busy={w.busy} run={w.run} onError={w.setError} init={() => setWizard(w.project)} done={w.reload}/>}
-          {w.tab === 'chat' && <Chat key={w.project} project={w.project} refresh={w.refresh} reload={w.reload} onError={w.setError}/>}
+          {w.tab === 'chat' && <Chat key={`${w.project}:${focusMessage}`} focusMessage={focusMessage} project={w.project} refresh={w.refresh} reload={w.reload} onError={w.setError}/>}
           {w.tab === 'history' && <History key={w.project} project={w.project} refresh={w.refresh} onError={w.setError}/>}
           {w.tab === 'settings' && <Settings key={w.project} project={w.project} refresh={w.refresh} init={() => setWizard(w.project)} done={w.reload} onError={w.setError}/>}
         </div>

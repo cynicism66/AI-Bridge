@@ -74,6 +74,10 @@
           "to": {
             "type": "string",
             "description": "收件人：claude / codex / human / all，默认 all"
+          },
+          "needs_action": {
+            "type": "boolean",
+            "description": "需要用户处理（确认、授权、决定）时设为 true，仅用于发给 human，默认 false"
           }
         },
         "required": [

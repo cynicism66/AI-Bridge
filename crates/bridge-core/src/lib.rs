@@ -101,3 +101,7 @@ pub mod record_copy;
 #[cfg(test)]
 mod record_copy_tests;
 mod record_frames;
+
+pub mod actions;
+#[cfg(test)]
+mod actions_tests;

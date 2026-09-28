@@ -33,6 +33,6 @@ class MigrationV7Tests(ContractCase):
         later = self.session('claude', clock='2091-01-01 01:01:01')
         later.call('read_messages', project=self.project)
         with closing(sqlite3.connect(self.database)) as db:
-            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0], 7)
+            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0], 8)
             self.assertEqual(db.execute('SELECT agent,read_at FROM reads ORDER BY agent').fetchall(), [('claude', STAMP), ('codex', None)])
             self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')

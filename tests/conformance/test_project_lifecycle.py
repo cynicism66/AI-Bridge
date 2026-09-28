@@ -61,7 +61,7 @@ class ProjectLifecycleTests(ContractCase):
             for table in ['status', 'sessions', 'messages', 'reads', 'claims', 'agent_settings', 'project_init', 'role_assignments', 'permission_overrides', 'events']:
                 self.assertEqual(db.execute(f'SELECT COUNT(*) FROM {table}').fetchone(), (0,), table)
             self.assertEqual(db.execute('SELECT COUNT(*) FROM settings WHERE scope=?', (self.project,)).fetchone(), (0,))
-            self.assertEqual(db.execute('PRAGMA user_version').fetchone(), (7,))
+            self.assertEqual(db.execute('PRAGMA user_version').fetchone(), (8,))
 
     def test_forget_from_current_directory_and_invalid_settings_rolls_back(self):
         self.enable()

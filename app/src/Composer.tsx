@@ -13,7 +13,7 @@ export function resizeComposer(input: HTMLTextAreaElement) {
   input.style.height = '0px';
   const height = Math.max(line * 3 + padding, Math.min(input.scrollHeight, line * 8 + padding));
   input.style.height = `${height + border}px`;
-  input.style.overflowY = input.scrollHeight > height ? 'auto' : 'hidden';
+  input.style.overflowY = 'auto';
 }
 
 export function Composer({ send, onError }: Props) {

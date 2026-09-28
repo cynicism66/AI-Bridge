@@ -41,7 +41,7 @@ class PermissionV6Tests(ContractCase):
         self.cli('status')
         self.cli('status')
         with closing(sqlite3.connect(self.database)) as db:
-            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],7)
+            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],8)
             self.assertEqual(db.execute('SELECT id FROM sessions').fetchall(),[('latest',)])
             self.assertEqual(db.execute('SELECT count(*) FROM status').fetchone()[0],0)
             self.assertEqual(db.execute('SELECT * FROM events').fetchall(),events)

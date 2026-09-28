@@ -2,7 +2,7 @@ import type { Message, ProjectSummary } from './types';
 import { zh } from './i18n/zh-CN';
 export function projectName(path: string): string { return path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || path; }
 export function unreadTotal(projects: Pick<ProjectSummary, 'unread'>[]): number { return projects.reduce((n, p) => n + Math.max(0, p.unread), 0); }
-export function trayState(global: boolean, unread: number): 'off' | 'normal' | 'unread' { return !global ? 'off' : unread > 0 ? 'unread' : 'normal'; }
+export function trayState(global: boolean, unread: number, actions = 0): 'off' | 'normal' | 'unread' | 'attention' { return !global ? 'off' : actions > 0 ? 'attention' : unread > 0 ? 'unread' : 'normal'; }
 export function mergeMessages(old: Message[], latest: Message[]): Message[] {
   return [...new Map([...old, ...latest].map(m => [m.id, m])).values()].sort((a, b) => a.id - b.id);
 }

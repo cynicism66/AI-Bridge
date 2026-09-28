@@ -22,7 +22,7 @@ pub fn snapshot(state: State<'_, Shared>) -> Reply<Value> {
     let mut s = lock(&state)?;
     s.refresh(false).map_err(error)?;
     Ok(
-        json!({"projects":s.projects,"discovered":s.discovered,"global":s.global,"revision":s.revision}),
+        json!({"actions":s.actions,"projects":s.projects,"discovered":s.discovered,"global":s.global,"revision":s.revision}),
     )
 }
 #[tauri::command]
@@ -33,7 +33,7 @@ pub fn check_changes(app: tauri::AppHandle, state: State<'_, Shared>) -> Reply<V
         .get_webview_window("main")
         .is_some_and(|w| w.is_visible().unwrap_or(false));
     Ok(
-        json!({"revision":s.revision,"visible":visible,"target":s.target.take(),"error":s.error.take()}),
+        json!({"revision":s.revision,"visible":visible,"target":s.target.take(),"targetAction":std::mem::take(&mut s.target_action),"error":s.error.take()}),
     )
 }
 #[tauri::command]

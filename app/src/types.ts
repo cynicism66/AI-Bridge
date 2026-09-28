@@ -1,5 +1,5 @@
 export interface ProjectSummary { project: string; enabled: boolean; initialized: boolean; unread: number; last: string | null }
-export interface Snapshot { projects: ProjectSummary[]; discovered: { project: string }[]; global: boolean; revision: number }
+export interface Snapshot { actions?: ActionItem[]; projects: ProjectSummary[]; discovered: { project: string }[]; global: boolean; revision: number }
 export interface Agent { agent: string; role: string | null; enabled: boolean }
 export interface Session { older: number; last_active: string; agent: string; session_no: number; branch: string; worktree: string; task: string; progress: string; blockers: string; next_step: string; updated_at: string }
 export interface Claim { path: string; agent: string; session_no: number; note: string; expires_at: string }
@@ -18,3 +18,5 @@ export interface TransferPreview { id: number; preview: { body: string; summary:
 export interface Settings { preferences: { notifications_enabled: boolean; hidden_projects: string[]; close_tip_shown: boolean }; database: string; version: string }
 
 export interface ReadReceipt { agent: string; read: boolean; read_at: string | null }
+
+export interface ActionItem { id: number; kind: "message" | "blocker"; project: string; agent: string; content: string }

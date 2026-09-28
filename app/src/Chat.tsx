@@ -6,13 +6,14 @@ import { MessageReceipts } from './MessageReceipts';
 import { zh } from './i18n/zh-CN';
 import { actor, mergeMessages, source } from './logic';
 import type { Message, MessagePage } from './types';
-interface Props { project: string; refresh: number; onError: (s: string) => void; reload: () => Promise<void> }
-export function Chat({ project, refresh, onError, reload }: Props) {
+interface Props { focusMessage?: number | null; project: string; refresh: number; onError: (s: string) => void; reload: () => Promise<void> }
+export function Chat({ focusMessage, project, refresh, onError, reload }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [before, setBefore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [paging, setPaging] = useState(false);
   const initial = useRef(true);
+  const focused=useRef(false);
   const scroller = useRef<HTMLDivElement>(null);
   const lastRead = useRef(0);
   const earliestId = useRef(0);
@@ -22,12 +23,16 @@ export function Chat({ project, refresh, onError, reload }: Props) {
       scroller.current.scrollTop = scroller.current.scrollHeight;
       scrollAfterSend.current = false;
     }
-  }, [messages]);
+    if(focusMessage && !focused.current) {
+      const element=scroller.current?.querySelector<HTMLElement>(`#message-${focusMessage}`);
+      if(element){element.scrollIntoView({block:'center'});element.focus();focused.current=true;}
+    }
+  }, [messages, focusMessage]);
   useEffect(() => {
     let active = true;
     async function load() {
       try {
-        const page = await invoke<MessagePage>('message_page', { project, before: null });
+        const page = await invoke<MessagePage>('message_page', { project, before: initial.current && focusMessage ? focusMessage+1 : null });
         if (!active) return;
         let incoming = page.messages;
         let cursor = page.before;
@@ -54,7 +59,7 @@ export function Chat({ project, refresh, onError, reload }: Props) {
     }
     void load();
     return () => { active = false; };
-  }, [project, refresh, onError, reload]);
+  }, [project, refresh, onError, reload, focusMessage]);
   async function older() {
     if (!before) return;
     setPaging(true);
@@ -75,7 +80,7 @@ export function Chat({ project, refresh, onError, reload }: Props) {
     <div className="messages" ref={scroller} aria-live="polite">
       {before && <Button className="older" appearance="subtle" disabled={paging} onClick={() => void older()}>{zh.loadOlder}</Button>}
       {loading ? <Spinner label={zh.loading}/> : !messages.length && <p className="empty-chat">{zh.emptyMessages}</p>}
-      {messages.map(m => <article className={`message ${m.sender === 'human' ? 'from-human' : ''}`} key={m.id}>
+      {messages.map(m => <article id={`message-${m.id}`} tabIndex={-1} className={`message ${m.sender === 'human' ? 'from-human' : ''}`} key={m.id}>
         <span className={`avatar ${m.sender}`}>{actor(m.sender).slice(0, 1).toUpperCase()}</span>
         <div className="message-main"><div className="message-heading"><strong>{actor(m.sender)}</strong><span className="message-id">#{m.id}</span><span>→ {actor(m.recipient)}</span>{m.sender === 'human' && <Badge size="small" appearance="tint">{source(m.via)}</Badge>}<time>{m.created_at}</time></div><p className="message-body">{m.content}</p><MessageReceipts message={m}/></div>
       </article>)}

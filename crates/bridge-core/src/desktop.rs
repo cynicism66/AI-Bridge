@@ -116,7 +116,7 @@ impl Bridge {
     }
 
     pub fn notification_messages(&self, after: i64) -> Result<Vec<Message>> {
-        decode(query(&self.database.open()?, "SELECT * FROM messages WHERE id>? AND sender!='human' AND recipient IN ('human','all') ORDER BY id LIMIT 100", [after])?)
+        decode(query(&self.database.open()?, "SELECT * FROM messages WHERE id>? AND needs_action=0 AND sender!='human' AND recipient IN ('human','all') ORDER BY id LIMIT 100", [after])?)
     }
 
     pub fn latest_message_id(&self) -> Result<i64> {

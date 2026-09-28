@@ -6,6 +6,7 @@ import { zh } from './i18n/zh-CN';
 export function useWorkspace() {
   const [data, setData] = useState<Snapshot | null>(null);
   const [project, setProject] = useState<string | null>(null);
+  const [actionFocus,setActionFocus]=useState(0);
   const [tab, setTab] = useState<Tab>('board');
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
@@ -25,10 +26,10 @@ export function useWorkspace() {
     async function poll() {
       let delay = 1500;
       try {
-        const status = await invoke<{ revision: number; visible: boolean; target: string | null; error: string | null }>('check_changes');
+        const status = await invoke<{ revision: number; visible: boolean; target: string | null; targetAction?: boolean; error: string | null }>('check_changes');
         if (!active) return;
         delay = status.visible ? 1500 : 5000;
-        if (status.target) select(status.target, 'chat');
+        if (status.target) {select(status.target, status.targetAction ? 'board' : 'chat'); if(status.targetAction)setActionFocus(n=>n+1);}
         if (status.error) setError(status.error);
         if (status.revision !== revision.current) await reload();
       } catch (e) { if (active) setError(String(e)); }
@@ -44,5 +45,5 @@ export function useWorkspace() {
     catch (e) { setError(String(e) || zh.operationFailed); return false; }
     finally { setBusy(false); }
   }, [reload]);
-  return { data, project, tab, error, busy, refresh, select, setTab, setError, run, reload };
+  return { actionFocus, data, project, tab, error, busy, refresh, select, setTab, setError, run, reload };
 }

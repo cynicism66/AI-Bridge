@@ -9,6 +9,8 @@ use std::{collections::BTreeSet, path::PathBuf, sync::Mutex, time::SystemTime};
 
 pub type Shared = Mutex<AppState>;
 pub struct AppState {
+    pub actions: Vec<bridge_core::actions::ActionItem>,
+    pub target_action: bool,
     pub copy_errors: std::collections::BTreeMap<String, String>,
     pub copy_revision: u64,
     pub pending: Option<(u64, crate::management::Pending)>,
@@ -47,6 +49,8 @@ impl AppState {
         let mut state = Self {
             copy_errors: Default::default(),
             copy_revision: 0,
+            actions: vec![],
+            target_action: false,
             pending: None,
             preview_serial: 0,
             bridge,
@@ -90,6 +94,14 @@ impl AppState {
             .filter(|p| !self.settings.hidden_projects.contains(&p.project))
             .collect();
         self.global = self.bridge.switch_state(None)?.global_enabled;
+        self.actions = self
+            .projects
+            .iter()
+            .map(|p| self.bridge.pending_actions(&p.project))
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect();
         let known: BTreeSet<_> = self.projects.iter().map(|p| p.project.clone()).collect();
         self.discovered = discover(&self.home, &known, &self.settings.hidden_projects);
         self.next_expiry = self.bridge.database.open()?.query_row(

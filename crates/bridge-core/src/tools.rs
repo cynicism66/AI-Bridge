@@ -98,7 +98,13 @@ impl Bridge {
                 }
                 let to = text(args, "to");
                 let to = if to.is_empty() { "all" } else { to }.trim().to_lowercase();
-                let id = self.send(&project, &self.agent, &to, content)?;
+                let needs_action = match args.get("needs_action") {
+                    None => false,
+                    Some(value) => value
+                        .as_bool()
+                        .ok_or_else(|| anyhow::anyhow!("needs_action 必须是布尔值"))?,
+                };
+                let id = self.send_action(&project, &to, content, needs_action)?;
                 Ok(format!("消息 #{id} 已发送给 {}。", format::recipient(&to)))
             }
             "read_messages" => {

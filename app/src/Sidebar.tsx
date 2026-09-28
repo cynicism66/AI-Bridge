@@ -30,6 +30,7 @@ export function Sidebar({ data, selected, busy, select, run, init, settings }: P
       {data.projects.map(p => <ProjectMenu key={p.project} project={p.project} enabled={p.enabled} busy={busy} toggle={toggle} run={run}><div className={`project-row ${selected === p.project ? 'selected' : ''}`} tabIndex={0}>
         <button className="project-select" onClick={() => select(p.project)} title={displayPath(p.project)}>
           <Folder20Regular/><span><strong>{projectName(p.project)}</strong><small>{p.initialized ? displayPath(p.project) : zh.pending}</small></span>
+          {(data.actions || []).some(a=>a.project===p.project) && <Badge className="attention-badge" color="warning" size="small" aria-label={zh.actionTitle}>!</Badge>}
           {p.unread > 0 && <Badge color="danger" size="small" aria-label={zh.unread}>{p.unread}</Badge>}
         </button>
         <Switch checked={p.enabled} disabled={busy} aria-label={`${zh.projectSwitch} ${p.project}`} onChange={(_, d) => void toggle(p.project, d.checked)}/>
@@ -45,6 +46,6 @@ export function Sidebar({ data, selected, busy, select, run, init, settings }: P
     </div>
     <div className="global-control"><div><strong>{zh.globalSwitch}</strong><small>{data.global ? zh.globalOn : zh.globalOff}</small></div><Switch checked={data.global} disabled={busy} aria-label={zh.globalSwitch} onChange={(_, d) => void run(() => invoke('set_switch', { project: null, agent: null, enabled: d.checked }))}/></div>
     <Button appearance="subtle" onClick={settings}>{zh.softwareSettings}</Button>
-    <div className="sidebar-foot"><span className={`status-dot ${trayState(data.global, unreadTotal(data.projects))}`}/>{data.global ? zh.enabled : zh.disabled}<span>{zh.unread} · {unreadTotal(data.projects)}</span></div>
+    <div className="sidebar-foot"><span className={`status-dot ${trayState(data.global, unreadTotal(data.projects), data.actions?.length || 0)}`}/>{data.global ? zh.enabled : zh.disabled}<span>{zh.unread} · {unreadTotal(data.projects)}</span></div>
   </aside>;
 }

@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod actions;
 mod browser;
 mod commands;
 mod locale;
@@ -50,6 +51,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
+            actions::resolve_action,
             commands::snapshot,
             commands::check_changes,
             commands::project_detail,
@@ -112,6 +114,7 @@ fn main() {
                         };
                         if revision != last_revision {
                             tray::refresh(&app)?;
+                            actions::notify(&app)?;
                             notifications::deliver(&app)?;
                             last_revision = revision;
                         }

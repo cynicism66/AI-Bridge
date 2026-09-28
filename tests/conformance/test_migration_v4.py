@@ -22,7 +22,7 @@ class MigrationV4Tests(ContractCase):
             old = {t: db.execute(f"SELECT * FROM {t}").fetchall() for t in ("sessions","status","claims","messages","reads","settings","agent_settings","events")}
         self.assertIn("待初始化", self.cli("status"))
         with closing(sqlite3.connect(self.database)) as db:
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 7)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 8)
             for table, rows in old.items():
                 self.assertEqual([r[:len(rows[0])] for r in db.execute(f"SELECT * FROM {table}")], rows)
             self.assertEqual(db.execute("SELECT charter_version FROM sessions").fetchall(), [(0,)])

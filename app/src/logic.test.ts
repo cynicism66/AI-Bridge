@@ -45,3 +45,5 @@ it('uses the message identity rather than the history event identity', () => {
   expect(historyMessageId({ message_id: 141 })).toBe(141);
   for (const detail of [null, {}, { id: 42 }, { message_id: '141' }, { message_id: -1 }]) expect(historyMessageId(detail)).toBeNull();
 });
+
+it('pending actions override unread red while global off stays gray',()=>{expect(trayState(true,3,1)).toBe('attention');expect(trayState(false,3,1)).toBe('off');expect(trayState(true,3,0)).toBe('unread');});

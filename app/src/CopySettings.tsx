@@ -26,6 +26,6 @@ export function CopySettings({ project, refresh, done, onError }: { project: str
     <Switch label={zh.copyEnabled} checked={data.enabled} disabled={busy} onChange={(_,d) => void save(d.checked)}/>
     {data.git && !data.ignored && <><p role="alert">{zh.copyPrivacy}</p><Button disabled={busy} onClick={() => void save()}>{zh.copyIgnoreButton}</Button></>}
     {data.ignored && <p>{zh.copyIgnored}</p>}
-    {data.warning && <p role="alert">{data.warning}</p>}{data.error && <p role="alert">{zh.copyFailed}: {data.error}</p>}
+    {data.warning && <p role="alert">{data.warning}</p>}<Button disabled={busy} onClick={() => {setBusy(true);void invoke<CopyState>('copy_settings',{project}).then(setData).catch(e=>onError(String(e))).finally(()=>setBusy(false));}}>{zh.copyRecheck}</Button>{data.error && <p role="alert">{zh.copyFailed}: {data.error}</p>}
   </>}</Card>;
 }

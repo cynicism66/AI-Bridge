@@ -72,5 +72,5 @@ it('height stays between three and eight lines and shrinks after content clears'
   height = 400; resizeComposer(input); expect(input.style.height).toBe('168px');
   expect(input.style.overflowY).toBe('auto');
   height = 20; resizeComposer(input); expect(input.style.height).toBe('68px');
-  expect(input.style.overflowY).toBe('hidden');
+  expect(input.style.overflowY).toBe('auto');
 });

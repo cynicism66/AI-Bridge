@@ -100,6 +100,16 @@ pub(crate) fn format_event(row: &Value) -> Result<String> {
             text(&data, "slot")
         ),
         "handover" => format!("交接给 {}：独立开发", text(&data, "to")),
+        "action_done" => format!(
+            "已处理 {} 的消息 #{}",
+            text(&data, "sender"),
+            data["message_id"]
+        ),
+        "blocker_ack" => format!(
+            "已知道 {} 的卡点：{}",
+            text(&data, "agent"),
+            text(&data, "blockers")
+        ),
         "forget" => "从列表移除项目（协作已关闭，数据保留）".into(),
         "permission" => format!(
             "{}职务 {} 的权限",
