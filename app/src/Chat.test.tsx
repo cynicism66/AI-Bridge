@@ -16,21 +16,25 @@ it('refreshes read receipts on older loaded pages and keeps IDs and guidance vis
   document.body.append(host);
   const root = createRoot(host);
   let read = false;
+  let newest = 2;
   const message = (id: number): Message => ({ id, project: '/test', sender: 'human', recipient: 'claude', content: `message ${id}`, created_at: '', via: 'gui', receipts: [{ agent: 'claude', read, read_at: read ? '2090-01-02 16:10:20' : null }] });
-  api.invoke.mockImplementation(async (command, args) => command === 'message_page' ? args.before ? { messages: [message(1)], before: null } : { messages: [message(2)], before: 2 } : undefined);
+  api.invoke.mockImplementation(async (command, args) => command === 'message_page' ? args.before ? { messages: [1, 2].filter(id => id < args.before).map(message), before: null } : { messages: [message(newest)], before: newest } : undefined);
   const reload = vi.fn(async () => {});
   const onError = vi.fn();
   try {
     await act(async () => root.render(<Chat project="/test" refresh={0} reload={reload} onError={onError}/>));
+    newest = 3;
+    await act(async () => root.render(<Chat project="/test" refresh={1} reload={reload} onError={onError}/>));
+    expect([...host.querySelectorAll('.message-id')].map(n => n.textContent)).toEqual(['#2', '#3']);
     await act(async () => host.querySelector<HTMLButtonElement>('.older')!.click());
-    expect(host.querySelectorAll('.message-id')).toHaveLength(2);
+    expect(host.querySelectorAll('.message-id')).toHaveLength(3);
     expect(host.querySelector('.message-id')!.textContent).toBe('#1');
     expect(host.querySelector('textarea')!.placeholder).toBe(zh.messagePlaceholder);
     expect(host.querySelector('.message-receipts')!.textContent).toContain(zh.messageUnread);
     read = true;
-    await act(async () => root.render(<Chat project="/test" refresh={1} reload={reload} onError={onError}/>));
+    await act(async () => root.render(<Chat project="/test" refresh={2} reload={reload} onError={onError}/>));
     expect(host.querySelector('.message-receipts')!.textContent).toContain(`${zh.messageRead} 16:10`);
-    expect(host.querySelectorAll('.message')).toHaveLength(2);
+    expect(host.querySelectorAll('.message')).toHaveLength(3);
     expect(onError).not.toHaveBeenCalled();
   } finally {
     await act(async () => root.unmount());

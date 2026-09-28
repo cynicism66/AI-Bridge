@@ -40,6 +40,7 @@ export function Chat({ project, refresh, onError, reload }: Props) {
           incoming = mergeMessages(gap.messages, incoming);
           cursor = gap.before;
         }
+        if (earliestId.current) incoming = incoming.filter(m => m.id >= earliestId.current);
         const nearEnd = scrollAfterSend.current || !scroller.current || scroller.current.scrollHeight - scroller.current.scrollTop - scroller.current.clientHeight < 120;
         scrollAfterSend.current = nearEnd;
         setMessages(old => mergeMessages(old, incoming));
