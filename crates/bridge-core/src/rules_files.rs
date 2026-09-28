@@ -56,18 +56,27 @@ impl RulesFiles {
         Ok(Self { files })
     }
     pub fn write(&self) -> Result<()> {
-        for (path, _, result) in &self.files {
-            if let Err(error) = std::fs::write(path, result) {
-                self.restore()?;
+        for (index, (path, _, result)) in self.files.iter().enumerate() {
+            if let Err(error) = crate::atomic_file::write(path, result) {
+                self.restore_count(index)?;
                 return Err(error).context("写入章程失败，已恢复原规则文件");
             }
         }
         Ok(())
     }
+    pub fn append_to(&self, batch: &mut crate::file_batch::Batch) -> Result<()> {
+        for (path, _, bytes) in &self.files {
+            batch.add(path.clone(), bytes.clone())?;
+        }
+        Ok(())
+    }
     pub fn restore(&self) -> Result<()> {
-        for (path, original, _) in &self.files {
+        self.restore_count(self.files.len())
+    }
+    fn restore_count(&self, count: usize) -> Result<()> {
+        for (path, original, _) in &self.files[..count] {
             match original {
-                Some(bytes) => std::fs::write(path, bytes)?,
+                Some(bytes) => crate::atomic_file::write(path, bytes)?,
                 None => match std::fs::remove_file(path) {
                     Ok(()) => (),
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),

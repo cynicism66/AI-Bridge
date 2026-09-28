@@ -1,9 +1,17 @@
+pub mod atomic_file;
 mod collaboration;
+mod documents;
+mod file_batch;
+mod handover;
 pub mod initialization;
 mod permissions;
+mod preview;
+pub mod redact;
+mod repo_files;
 mod rules_files;
 pub mod templates;
-// Bridge 的存储、工具和中文格式化；仅 Git 路径诊断写入 stderr，不使用 stdin/stdout。
+pub mod transfer;
+// Bridge 的存储、工具和中文格式化；人用导出/交接的交互由 preview 模块处理。
 mod agent_switch;
 mod claims;
 pub mod database;

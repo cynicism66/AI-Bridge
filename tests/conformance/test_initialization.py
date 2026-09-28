@@ -74,7 +74,7 @@ class InitializationTests(ContractCase):
         self.cli(*self.init_args("--no-kickoff"))
         s = self.session("claude")
         self.check(s.call("claim_files", project=self.project, files=["docs/good.md", "src/bad.rs"]),
-                   "认领失败：以下文件超出你（claude，职务：规划审查）的可写范围：src/bad.rs。你的可写范围：docs/**。如确需修改，请先用 send_message 和规划方或用户协商。")
+                   "认领失败：以下文件超出你（claude，职务：规划审查）的可写范围：src/bad.rs。你的可写范围：docs/**、AGENTS.md。如确需修改，请先用 send_message 和规划方或用户协商。")
         with closing(sqlite3.connect(self.database)) as db:
             self.assertEqual(db.execute("SELECT count(*) FROM claims").fetchone()[0], 0)
             self.assertEqual(db.execute("SELECT count(*) FROM events WHERE kind='claim'").fetchone()[0], 0)

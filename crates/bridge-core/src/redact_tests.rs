@@ -1,0 +1,120 @@
+use super::*;
+#[test]
+fn keys_and_non_keys() {
+    for prefix in [
+        "sk-",
+        "sk-ant-",
+        "ghp_",
+        "gho_",
+        "github_pat_",
+        "AKIA",
+        "xoxb-",
+        "xoxa-",
+        "xoxp-",
+        "xoxr-",
+        "xoxs-",
+        "AIza",
+    ] {
+        assert_eq!(scan(prefix).text, prefix);
+        let input = format!("中文 {prefix}aB123456 end");
+        let result = scan(&input);
+        assert_eq!(result.text, "中文 [已打码：密钥] end", "{prefix}");
+        assert_eq!(result.counts["密钥"], 1);
+    }
+    for input in [
+        "token is a word",
+        "sk-",
+        "ghp_",
+        "xoxz-123456",
+        "desk-1234",
+        "github_path",
+        "AKI",
+        "apikeys=normal",
+        "passwordless=true",
+    ] {
+        assert_eq!(scan(input).text, input);
+        assert!(scan(input).counts.is_empty());
+    }
+}
+#[test]
+fn private_key_blocks_and_public_keys() {
+    for label in [
+        "PRIVATE KEY",
+        "RSA PRIVATE KEY",
+        "EC PRIVATE KEY",
+        "OPENSSH PRIVATE KEY",
+        "ENCRYPTED PRIVATE KEY",
+    ] {
+        for newline in ["\n", "\r\n"] {
+            let source = format!(
+                "before -----BEGIN {label}-----{newline}abc123{newline}-----END {label}----- after"
+            );
+            let result = scan(&source);
+            assert_eq!(result.text, "before [已打码：私钥] after");
+            assert_eq!(result.counts["私钥"], 1);
+        }
+    }
+    assert_eq!(
+        scan("-----BEGIN PRIVATE KEY-----\ntruncated").text,
+        "[已打码：私钥]"
+    );
+    let public = "-----BEGIN PUBLIC KEY-----\naaa\n-----END PUBLIC KEY-----";
+    assert_eq!(scan(public).text, public);
+}
+#[test]
+fn assignments_quotes_case_unicode_and_empty_values() {
+    for key in [
+        "password", "passwd", "pwd", "secret", "token", "api_key", "apikey",
+    ] {
+        for sep in ["=", " : "] {
+            let source = format!("{}{}\"秘密 a\\\"b\"; end", key.to_uppercase(), sep);
+            let result = scan(&source);
+            assert_eq!(
+                result.text,
+                format!("{}{sep}\"[已打码：赋值凭据]\"; end", key.to_uppercase())
+            );
+            assert_eq!(result.counts["赋值凭据"], 1);
+        }
+    }
+    assert_eq!(
+        scan(r#"{"pwd":"中文","token":'abc',"api_key":xyz}"#).text,
+        r#"{"pwd":"[已打码：赋值凭据]","token":'[已打码：赋值凭据]',"api_key":[已打码：赋值凭据]}"#
+    );
+    assert_eq!(
+        scan("secret='first\nsecond'").text,
+        "secret='[已打码：赋值凭据]'"
+    );
+    for source in [
+        "password",
+        "token count",
+        "secret=",
+        "pwd=''",
+        "api_key: \n",
+        "an_api_key=ordinary",
+    ] {
+        assert_eq!(scan(source).text, source);
+    }
+}
+#[test]
+fn bearer_urls_and_idempotence() {
+    let result = scan("Bearer abc.def-123 bEaReR aB+/= https://user:pass@example.com/a http://姓名:密码@localhost/");
+    assert_eq!(result.text, "Bearer [已打码：Bearer] bEaReR [已打码：Bearer] https://[已打码：URL凭据]@example.com/a http://[已打码：URL凭据]@localhost/");
+    assert_eq!(result.counts["Bearer"], 2);
+    assert_eq!(result.counts["URL凭据"], 2);
+    assert!(result.summary().starts_with("共打码 4 处："));
+    let second = scan(&result.text);
+    assert_eq!(second.text, result.text);
+    assert!(second.counts.is_empty());
+    for source in [
+        "Bearer ",
+        "Bearers abc",
+        "https://example.com:8080/a",
+        "git@example.com:path",
+        "https://user@example.com/a",
+    ] {
+        assert_eq!(scan(source).text, source);
+    }
+    let first = scan("password='abc' token=def ghp_abcdefgh");
+    assert_eq!(scan(&first.text).text, first.text);
+    assert!(scan(&first.text).counts.is_empty());
+}

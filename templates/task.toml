@@ -8,9 +8,9 @@ charter = """
 [[roles]]
 slot = "规划审查"
 duties = "拆任务、写任务书和验收标准、审查提交"
-allow = ["读取全部代码", "运行测试", "写 docs/"]
+allow = ["读取全部代码", "运行测试", "写 docs/ 和根目录 AGENTS.md"]
 deny = ["修改实现代码和测试", "commit", "push"]
-write = ["docs/**"]
+write = ["docs/**", "AGENTS.md"]
 kickoff = true
 [[roles]]
 slot = "执行"

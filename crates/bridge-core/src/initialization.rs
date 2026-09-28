@@ -42,6 +42,10 @@ impl Bridge {
         tx.execute("DELETE FROM role_assignments WHERE project=?", [project])?;
         for (agent, slot) in &roles {
             tx.execute(
+                "UPDATE agent_settings SET enabled=1 WHERE project=? AND agent=? AND enabled!=1",
+                params![project, agent],
+            )?;
+            tx.execute(
                 "INSERT INTO role_assignments VALUES (?,?,?)",
                 params![project, agent, slot],
             )?;

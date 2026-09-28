@@ -103,7 +103,7 @@ Windows 接受 `D:\code\example`、`D:/code/example`、UNC 路径，以及转换
 关闭时人用命令仍能操作；AI 收到“未开启／已关闭”提示后，应停止在本次会话调用 Bridge。
 Rust 不提供 `watch`，后续由桌面软件显示持续变化。
 
-`history` 的类型包括 `status`、`message`、`claim`、`release`、`expire`、`switch`、`agent_switch`、`init`、`role`。
+`history` 的类型包括 `status`、`message`、`claim`、`release`、`expire`、`switch`、`agent_switch`、`init`、`role`、`handover`。
 AI 开关事件显示为 `[时间] human 对 codex 关闭 Bridge` 或 `开启 Bridge`，由数据库触发器写入。
 项目历史也包含全局开关事件；支持身份与类型组合筛选，目前不自动清理历史。
 
@@ -111,7 +111,7 @@ AI 开关事件显示为 `[时间] human 对 codex 关闭 Bridge` 或 `开启 Br
 
 项目状态为：关闭 → 用户 `on` → 待初始化 → 用户 `init` → 协作中。重新开关已经初始化的项目会保留章程；重新执行 `init` 则递增章程版本。尚未初始化时，除 `list_projects` 外，AI 工具只返回提醒，不写会话、状态、消息或认领。
 
-管理命令 `on`、`off`、`agent`、`init`、`role` 必须由用户执行。下面示例中的 `$bridge` 指向已安装的程序，项目应先开启：
+管理命令 `on`、`off`、`agent`、`init`、`role`、`handover` 及导出命令 `export` 必须由用户执行。下面示例中的 `$bridge` 指向已安装的程序，项目应先开启：
 
 ```powershell
 $bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
@@ -122,15 +122,16 @@ $bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
 & $bridge role D:\code\example codex 规划审查
 ```
 
-- **任务书流程**：规划审查负责 `docs/**`，执行方负责实现、测试、完成报告及统一提交；执行方的路径规则为空，表示项目内可写范围不限制，仍须遵守章程里的禁止事项。
+- **任务书流程**：规划审查可写 `docs/**` 和根目录 `AGENTS.md`，执行方负责实现、测试、完成报告及统一提交；执行方的路径规则为空，表示项目内可写范围不限制，仍须遵守章程里的禁止事项。
 - **结对流程**：开发甲、开发乙均可写项目文件，完成后相互审查；本轮实现方统一提交。
+- **独立开发**：只有一个“独立开发”职务，接手方负责规划、实现、自查和提交，项目内可写范围不限制。支持直接 `init --template 独立开发 --role 独立开发=codex --goal "目标"`。
 - **自定义**：用 `--template 自定义 --template-file .\team.toml` 读取用户 TOML。可从 [task.toml](templates/task.toml) 或 [pair.toml](templates/pair.toml) 复制修改。
 
 `init [项目] --template <名字> --role <位置>=<agent> ... --goal "目标"` 要求每个位置恰好分配一个 AI，且一个 AI 只能担任一个位置。`human`、`bridge`、`all` 是保留名称。`role [项目] <agent> <位置>` 在目标位置已占用时交换双方职务（用户已选定的行为），数据库章程版本加一，权限立即生效；新增参与者应重新 `init`。重复设置同职务不产生伪变更事件。
 
-默认以系统身份 `bridge` 向 kickoff 职务发送 `first_task`，向其他参与者分别发送 `first_task_others`；两个内置模板均分配两个 AI，因此产生两条消息。使用 `--no-kickoff` 可省略派发，适合正在进行中的项目。初始化和职务交换由数据库触发器记录，`history --kind init` / `--kind role` 可查看。
+默认以系统身份 `bridge` 向 kickoff 职务发送 `first_task`，向其他参与者分别发送 `first_task_others`；任务书流程和结对流程均分配两个 AI，因此产生两条消息；独立开发只产生一条消息。使用 `--no-kickoff` 可省略派发，适合正在进行中的项目。初始化和职务交换由数据库触发器记录，`history --kind init` / `--kind role` 可查看。
 
-`--write-rules` 把生成的章程写到项目键对应根目录的 `AGENTS.md` 与 `CLAUDE.md` 的下列标记内；不存在则新建，已有区块则替换，区块外的原始字节（包括 BOM、换行）保持不变。标记不完整或重复时拒绝写入。启用此选项后，`role` 也会同步更新两个标记块；重新 `init` 时是否导出由当次 `--write-rules` 决定。普通写入失败会回滚数据库并尝试恢复文件；数据库与文件系统无法构成跨系统的断电原子事务。
+`--write-rules` 把生成的章程写到项目键对应根目录的 `AGENTS.md` 与 `CLAUDE.md` 的下列标记内；不存在则新建，已有区块则替换，区块外的原始字节（包括 BOM、换行）保持不变。标记不完整或重复时拒绝写入。启用此选项后，`role` 也会同步更新两个标记块；重新 `init` 时是否导出由当次 `--write-rules` 决定。文件先在同目录暂存、刷盘，再用 Windows 原子替换；普通写入失败会回滚数据库并尝试恢复文件；数据库与文件系统无法构成跨系统的断电原子事务。
 
 ```markdown
 <!-- AI Bridge 章程开始（由 bridge 生成，请勿手动修改此区块） -->
@@ -179,6 +180,44 @@ content = "请等待 {规划} 的首个任务。"
 | `Cargo.toml` | 完整相对路径 |
 
 匹配前进行相对路径规范化，Windows 不区分大小写；空规则允许项目内任意路径。项目外的绝对路径和 `../` 越界路径不允许认领；未分配职务的 AI 不能认领文件，可通过留言联系用户。一个文件越权则整批拒绝。此层只约束 Bridge 认领操作，各 app 的原生权限接入计划在 T09 实现。
+
+## 导出与交接（仅用户操作）
+
+```powershell
+# 导出默认写到项目内 docs/bridge/协作记录.md
+& $bridge export D:\code\example
+# 可指定仓库内的相对路径或绝对路径
+& $bridge export D:\code\example --out docs/协作归档.md
+# 交给 Claude 全盘接手；请只对真正要转为单人开发的项目操作
+& $bridge handover D:\code\example --to claude
+```
+
+两个命令都会先把**已经打码**的预览放到仓库外的临时目录，打印预览路径、打码次数及类型、即将写入的文件路径。有 `.git/config` 远程地址时，逐一显示“提交并推送后内容可能公开”的提醒；远程 URL 中的密码也会打码。打开预览检查后，在终端的 `确认写入？(y/N)` 后输入小写 `y` 才会写入，其他输入或输入结束均取消。`--yes` 用于脚本和测试，跳过询问，但仍生成预览、执行打码并显示远程警告。预览保留供检查，用完后可删除打印出的预览文件及其所在的独立临时目录。
+
+导出包含时间、章程版本和全文、职务、各会话最新状态、当前有效认领、最近 200 条消息和最近 500 条历史。`--out` 不能越出项目目录、覆盖 Bridge 数据库或 Git 元数据，也不能经过符号链接或 Windows 目录联接。省略项目使用当前目录；Git 项目按公共项目根目录输出，与公告板的项目识别一致。
+
+打码使用内置扫描规则，不调用 AI，也不需要额外依赖：
+
+- 密钥前缀：`sk-`、`sk-ant-`、`ghp_`、`gho_`、`github_pat_`、`AKIA`、`xoxb-`、`xoxa-`、`xoxp-`、`xoxr-`、`xoxs-`、`AIza`，匹配前缀后至少四个令牌字符。
+- `BEGIN … PRIVATE KEY` 至对应 `END … PRIVATE KEY` 的整块私钥；缺失结束标记时打码到文本末尾。
+- 不区分大小写的 `password`、`passwd`、`pwd`、`secret`、`token`、`api_key`、`apikey` 后的 `=`／`:` 赋值，支持单引号、双引号和非引号值。
+- `Bearer ` 后的令牌，以及 URL 中的 `user:password@` 凭据。
+
+匹配内容替换为 `[已打码：类型]`；没有赋值的普通单词（例如 `token`）保持原样。自动扫描只覆盖这些格式，因此仍需检查预览。打码针对生成到仓库和预览里的内容，数据库原始记录保持原样；已有规则文件标记块之外的用户内容保持原字节。
+
+交接确认后会生成 `docs/HANDOVER.md`，记录原目标、模板、章程、职务、各会话状态、各方及 human 的未读消息、未释放的认领、项目文档索引和最近 50 条历史。“风险”和“建议的下一步”由接手方补全；文档还写明接手方的新职责与首个任务，关闭或卸载 Bridge 后也可依此继续工作。
+
+同时，Bridge 切换为“独立开发”模板、递增章程版本、保留接手方开关并将其开启，关闭其他已知 AI，释放它们的全部认领。其他 AI 的未读消息由 `bridge` 转发给接手方，注明原发送方和收件人，广播按原消息 ID 去重；原消息与已读记录不改。若当前初始化记录启用了 `--write-rules`，还会原子替换 `AGENTS.md`、`CLAUDE.md` 的章程标记块。接手方收到阅读交接文档、补全风险与下一步并向 human 汇报的任务。`history --kind handover` 可查看交接事件。
+
+确认期间若数据库或目标文件变化，命令会要求重新预览。普通中途失败会回滚数据库，并恢复已经替换的文件或移除本次新建的文件与空目录；单个文件不会先被清空。多个文件和 SQLite 之间仍不构成断电／强制结束进程时的整体原子事务；若恢复也因权限变化失败，命令会明确报错。
+
+恢复多 AI 协作时，由用户重新初始化；此次参与者的 AI 开关自动开启，章程版本递增：
+
+```powershell
+& $bridge init D:\code\example --template 任务书流程 --role 规划审查=claude --role 执行=codex --goal "继续实现项目目标" --no-kickoff --write-rules
+```
+
+原先开启了规则文件输出的项目，恢复时也应带 `--write-rules`，让仓库内的单人章程同步换回多人章程。若全局或项目总开关已关闭，需要用户先执行对应的 `on`。
 
 ## 项目识别与窗口会话
 

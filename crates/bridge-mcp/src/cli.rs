@@ -65,6 +65,24 @@ enum Command {
         #[arg(num_args = 2..=3, value_names = ["项目或AI", "AI或职务", "职务"])]
         values: Vec<String>,
     },
+    /// 导出协作记录，预览后由用户确认
+    Export {
+        #[command(flatten)]
+        project: Project,
+        #[arg(long)]
+        out: Option<String>,
+        #[arg(long)]
+        yes: bool,
+    },
+    /// 交接给一个 AI 全盘接手，预览后由用户确认
+    Handover {
+        #[command(flatten)]
+        project: Project,
+        #[arg(long)]
+        to: String,
+        #[arg(long)]
+        yes: bool,
+    },
     /// 查看公告板
     Show(Project),
     /// 读取给 human 的未读消息
@@ -85,7 +103,7 @@ enum Command {
         limit: i64,
         #[arg(long)]
         agent: Option<String>,
-        #[arg(long, value_parser = ["status", "message", "claim", "release", "expire", "switch", "agent_switch", "init", "role"])]
+        #[arg(long, value_parser = ["status", "message", "claim", "release", "expire", "switch", "agent_switch", "init", "role", "handover"])]
         kind: Option<String>,
     },
 }
@@ -152,6 +170,12 @@ pub fn run(bridge: &Bridge) -> Result<Option<String>> {
                 (values[0].as_str(), &values[1], &values[2])
             };
             bridge.role_text(&paths::cli_project(project)?, agent, slot)?
+        }
+        Command::Export { project, out, yes } => {
+            bridge.transfer_text(&project.resolve()?, out.as_deref(), None, yes)?
+        }
+        Command::Handover { project, to, yes } => {
+            bridge.transfer_text(&project.resolve()?, None, Some(&to), yes)?
         }
         Command::Status => bridge.status_text()?,
         Command::Show(args) => bridge.show_text(&args.resolve()?)?,

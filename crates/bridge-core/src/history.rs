@@ -36,7 +36,7 @@ impl Bridge {
     }
 }
 
-fn format_event(row: &Value) -> Result<String> {
+pub(crate) fn format_event(row: &Value) -> Result<String> {
     let data: Value = serde_json::from_str(text(row, "detail"))?;
     let action = match text(row, "kind") {
         "status" => {
@@ -99,6 +99,7 @@ fn format_event(row: &Value) -> Result<String> {
             text(&data, "agent"),
             text(&data, "slot")
         ),
+        "handover" => format!("交接给 {}：独立开发", text(&data, "to")),
         "switch" => format!(
             "{}{}",
             if data["enabled"].as_i64().unwrap_or(0) != 0 {

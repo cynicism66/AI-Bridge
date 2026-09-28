@@ -1,0 +1,18 @@
+name = "独立开发"
+charter = """
+项目目标：{goal}
+{独立开发} 全盘负责规划、实现、自查和提交。
+请先阅读 docs/HANDOVER.md（如存在）和其中列出的项目文档，再继续工作。
+即使 Bridge 关闭或卸载，也以仓库内的交接文档、任务书和用户决定为依据继续独立开发。
+"""
+[[roles]]
+slot = "独立开发"
+duties = "规划、实现、自查和提交全部由接手方负责"
+allow = ["规划", "实现和测试", "自查", "提交和推送"]
+deny = ["替用户执行管理命令", "越过用户决定"]
+write = []
+kickoff = true
+[first_task]
+content = '请阅读 docs/HANDOVER.md 和其中列出的项目文档，确认你理解了项目现状，补全"风险"和"建议的下一步"两节，然后留言给 human 汇报。'
+[first_task_others]
+content = ""

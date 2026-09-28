@@ -41,7 +41,8 @@ pub fn load(name: &str, file: Option<&Path>) -> Result<Template> {
         (_, Some(_)) => bail!("--template-file 只能和 --template 自定义 一起使用"),
         ("任务书流程", None) => include_str!("../../../templates/task.toml").into(),
         ("结对流程", None) => include_str!("../../../templates/pair.toml").into(),
-        _ => bail!("未知模板：{name}；可选：任务书流程、结对流程、自定义"),
+        ("独立开发", None) => include_str!("../../../templates/solo.toml").into(),
+        _ => bail!("未知模板：{name}；可选：任务书流程、结对流程、独立开发、自定义"),
     };
     parse(&source)
 }
