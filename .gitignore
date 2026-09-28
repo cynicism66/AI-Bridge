@@ -9,3 +9,4 @@ dist/
 target/
 node_modules/
 app/src-tauri/gen/
+.bridge/
