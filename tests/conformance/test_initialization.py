@@ -74,7 +74,7 @@ class InitializationTests(ContractCase):
         self.cli(*self.init_args("--no-kickoff"))
         s = self.session("claude")
         self.check(s.call("claim_files", project=self.project, files=["docs/good.md", "src/bad.rs"]),
-                   "认领失败：以下文件超出你（claude，职务：规划审查）的可写范围：src/bad.rs。你的可写范围：docs/**、AGENTS.md。如确需修改，请先用 send_message 和规划方或用户协商。")
+                   "认领失败：以下文件超出你（claude，职务：规划审查）的可写范围：src/bad.rs。你的可写范围：docs/**、AGENTS.md。如确需修改，请先用 send_message 和用户协商。")
         with closing(sqlite3.connect(self.database)) as db:
             self.assertEqual(db.execute("SELECT count(*) FROM claims").fetchone()[0], 0)
             self.assertEqual(db.execute("SELECT count(*) FROM events WHERE kind='claim'").fetchone()[0], 0)
@@ -113,7 +113,10 @@ class InitializationTests(ContractCase):
         self.assertIn("== 协作章程 v2 ==", board)
         self.assertIn("codex 负责规划和审查，claude 负责实现", board)
         self.assertIn("职务：规划审查", board)
-        self.assertIn("超出", content(s.call("claim_files", project=self.project, files=["src/x.rs"])))
+        refused = content(s.call("claim_files", project=self.project, files=["src/x.rs"]))
+        self.assertIn("超出", refused)
+        self.assertIn("和用户协商", refused)
+        self.assertNotIn("和规划方或用户协商", refused)
         self.assertEqual(normalized(self.cli("history", self.project, "--kind", "role")),
                          "[<时间>] human 把 codex 的职务改为 规划审查\n[<时间>] human 把 claude 的职务改为 执行\n")
         before = self.snapshot()
@@ -167,7 +170,9 @@ class InitializationTests(ContractCase):
         for name in ("src/a.rs", "deep/a.md", "Cargo.toml"):
             self.assertIn("已认领", content(s.call("claim_files", project=self.project, files=[name])))
         for name in ("src/deep/a.rs", "other.rs", "../a.md"):
-            self.assertIn("超出", content(s.call("claim_files", project=self.project, files=[name])))
+            refused = content(s.call("claim_files", project=self.project, files=[name]))
+            self.assertIn("超出", refused)
+            self.assertIn("和规划方或用户协商", refused)
         before = self.snapshot()
         template.write_text(source.replace('"src/*.rs"','"src/**/a.rs"'), encoding="utf-8")
         self.assertIn("不支持的 write", self.cli(*args, ok=False))

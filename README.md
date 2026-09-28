@@ -200,10 +200,10 @@ content = "请等待 {规划} 的首个任务。"
 
 - 密钥前缀：`sk-`、`sk-ant-`、`ghp_`、`gho_`、`github_pat_`、`AKIA`、`xoxb-`、`xoxa-`、`xoxp-`、`xoxr-`、`xoxs-`、`AIza`，匹配前缀后至少四个令牌字符。
 - `BEGIN … PRIVATE KEY` 至对应 `END … PRIVATE KEY` 的整块私钥；缺失结束标记时打码到文本末尾。
-- 不区分大小写的 `password`、`passwd`、`pwd`、`secret`、`token`、`api_key`、`apikey` 后的 `=`／`:` 赋值，支持单引号、双引号和非引号值。
+- 赋值符号 `=`／`:` 左侧的完整变量名，只要包含 `password`、`passwd`、`pwd`、`secret`、`token`、`api_key`、`apikey`、`api-key`、`access_key`、`private_key`、`credential`、`auth` 中任一关键词（不区分大小写），就对值打码。例如 `GITHUB_TOKEN`、`OPENAI_API_KEY`、`AWS_SECRET_ACCESS_KEY`、`DB_PASSWORD`、`client_secret`、`access_token`。变量名支持字母、数字、`_`、`-`、`.`，可带引号、`export ` 或 `$env:`；赋值两边可有空格，值支持单双引号及非引号格式，带引号时保留引号并完整打码含空格的内容。
 - `Bearer ` 后的令牌，以及 URL 中的 `user:password@` 凭据。
 
-匹配内容替换为 `[已打码：类型]`；没有赋值的普通单词（例如 `token`）保持原样。自动扫描只覆盖这些格式，因此仍需检查预览。打码针对生成到仓库和预览里的内容，数据库原始记录保持原样；已有规则文件标记块之外的用户内容保持原字节。
+匹配内容替换为 `[已打码：类型]`；没有赋值的普通句子（例如“这个 token 很重要”）保持原样；关键词仅出现在普通变量的值中时，不会因此打码。按包含关键词的规则，`passwordless=true` 这类变量也会打码。自动扫描只覆盖这些格式，因此仍需检查预览。打码针对生成到仓库和预览里的内容，数据库原始记录保持原样；已有规则文件标记块之外的用户内容保持原字节。
 
 交接确认后会生成 `docs/HANDOVER.md`，记录原目标、模板、章程、职务、各会话状态、各方及 human 的未读消息、未释放的认领、项目文档索引和最近 50 条历史。“风险”和“建议的下一步”由接手方补全；文档还写明接手方的新职责与首个任务，关闭或卸载 Bridge 后也可依此继续工作。
 

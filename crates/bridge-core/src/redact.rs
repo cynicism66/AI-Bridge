@@ -16,65 +16,8 @@ fn end_token(s: &str) -> usize {
 fn boundary(s: &str, i: usize) -> bool {
     i == 0 || !word(s.as_bytes()[i - 1])
 }
-fn assignment(s: &str, i: usize) -> Option<(usize, usize)> {
-    if !boundary(s, i) {
-        return None;
-    }
-    for name in [
-        "password", "passwd", "pwd", "secret", "token", "api_key", "apikey",
-    ] {
-        let tail = &s[i..];
-        let Some(key) = tail.get(..name.len()) else {
-            continue;
-        };
-        if !key.eq_ignore_ascii_case(name) {
-            continue;
-        }
-        let mut at = i + name.len();
-        if s.as_bytes().get(at).is_some_and(|b| word(*b)) {
-            continue;
-        }
-        if matches!(s.as_bytes().get(at), Some(b'"' | b'\'')) {
-            at += 1;
-        }
-        while matches!(s.as_bytes().get(at), Some(b' ' | b'\t')) {
-            at += 1;
-        }
-        if !matches!(s.as_bytes().get(at), Some(b'=' | b':')) {
-            continue;
-        }
-        at += 1;
-        while matches!(s.as_bytes().get(at), Some(b' ' | b'\t')) {
-            at += 1;
-        }
-        if matches!(s.as_bytes().get(at), Some(b'"' | b'\'')) {
-            let quote = s.as_bytes()[at];
-            at += 1;
-            if s[at..].starts_with("[已打码：") {
-                return None;
-            }
-            let start = at;
-            let mut escaped = false;
-            for (off, c) in s[at..].char_indices() {
-                if c as u32 == u32::from(quote) && !escaped {
-                    return Some((start, at + off));
-                }
-                escaped = c == '\\' && !escaped;
-            }
-            return Some((start, s.len()));
-        }
-        if s[at..].starts_with("[已打码：") {
-            return None;
-        }
-        let end = s[at..]
-            .find(|c: char| c.is_whitespace() || r#",;}]"'<>`"#.contains(c))
-            .map_or(s.len(), |n| at + n);
-        if end > at {
-            return Some((at, end));
-        }
-    }
-    None
-}
+#[path = "redact_assignment.rs"]
+mod assignment;
 fn private_key(s: &str) -> Option<usize> {
     if !s.starts_with("-----BEGIN ") {
         return None;
@@ -88,6 +31,9 @@ fn private_key(s: &str) -> Option<usize> {
     Some(s.find(&footer).map_or(s.len(), |n| n + footer.len()))
 }
 pub fn scan(s: &str) -> Redacted {
+    scan_text(s, true)
+}
+fn scan_text(s: &str, assignments: bool) -> Redacted {
     let mut out = Redacted::default();
     let mut i = 0;
     while i < s.len() {
@@ -136,11 +82,23 @@ pub fn scan(s: &str) -> Redacted {
                 }
             }
         }
-        if found.is_none() {
-            if let Some((start, end)) = assignment(s, i) {
-                if end > start {
-                    found = Some((start, end, "赋值凭据"));
+        if found.is_none() && assignments {
+            if let Some(value) = assignment::parse(s, i) {
+                out.text.push_str(&s[i..value.start]);
+                if value.sensitive && value.end > value.start {
+                    out.text.push_str("[已打码：赋值凭据]");
+                    *out.counts.entry("赋值凭据").or_default() += 1;
+                } else {
+                    // 普通变量的值仍检查密钥等规则，但不把值内文字当成变量名。
+                    let nested = scan_text(&s[value.start..value.end], false);
+                    out.text.push_str(&nested.text);
+                    for (kind, count) in nested.counts {
+                        *out.counts.entry(kind).or_default() += count;
+                    }
                 }
+                out.text.push_str(&s[value.end..value.next]);
+                i = value.next;
+                continue;
             }
         }
         if found.is_none() && s[i..].starts_with("://") {

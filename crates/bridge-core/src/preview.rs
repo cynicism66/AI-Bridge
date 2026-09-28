@@ -6,6 +6,16 @@ use std::{
     path::{Path, PathBuf},
 };
 
+// 仅用于显示；文件读写与路径校验继续使用原始路径。
+pub fn display_path(path: &Path) -> String {
+    let text = path.to_string_lossy();
+    if let Some(unc) = text.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{unc}")
+    } else {
+        text.strip_prefix(r"\\?\").unwrap_or(&text).to_owned()
+    }
+}
+
 pub fn create(root: &Path, body: &str, batch: &Batch) -> Result<(PathBuf, String)> {
     let root = fs::canonicalize(root)?;
     let temp = fs::canonicalize(std::env::temp_dir())?;
@@ -25,10 +35,13 @@ pub fn create(root: &Path, body: &str, batch: &Batch) -> Result<(PathBuf, String
     let paths = batch
         .paths()
         .iter()
-        .map(|p| redact::scan(&p.to_string_lossy()).text)
+        .map(|p| redact::scan(&display_path(p)).text)
         .collect::<Vec<_>>()
         .join("\n");
-    let mut message = format!("预览文件：{}\n即将写入：\n{paths}\n", preview.display());
+    let mut message = format!(
+        "预览文件：{}\n即将写入：\n{paths}\n",
+        display_path(&preview)
+    );
     for url in repo_files::remotes(&root)? {
         message.push_str(&format!(
             "此仓库有远程地址 {}，提交并推送后内容可能公开，请仔细检查预览文件\n",
@@ -52,4 +65,20 @@ pub fn confirm(message: &str, yes: bool) -> Result<bool> {
         .read_line(&mut input)
         .context("读取确认输入失败")?;
     Ok(input.trim() == "y")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn display_paths_preserve_drive_and_unc_roots() {
+        for (raw, expected) in [
+            (r"\\?\C:\目录\预览.md", r"C:\目录\预览.md"),
+            (r"\\?\UNC\server\share\预览.md", r"\\server\share\预览.md"),
+            (r"C:\目录\预览.md", r"C:\目录\预览.md"),
+            (r"\\server\share\预览.md", r"\\server\share\预览.md"),
+        ] {
+            assert_eq!(display_path(Path::new(raw)), expected);
+        }
+    }
 }

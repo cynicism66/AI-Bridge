@@ -61,7 +61,11 @@ impl Bridge {
         let mut stats = doc.counts;
         let mut batch = Batch::default();
         batch.add(destination.clone(), doc.text.as_bytes().to_vec())?;
-        let mut preview_body = format!("# 输出文件：{}\n\n{}", destination.display(), doc.text);
+        let mut preview_body = format!(
+            "# 输出文件：{}\n\n{}",
+            preview::display_path(&destination),
+            doc.text
+        );
         if let Some(plan) = &plan {
             preview_body.push_str(&format!("\n# 交接变更预览\n\n接手方：{}\n关闭 AI：{}\n转发未读原消息：{} 条（广播按原消息 ID 去重）\n章程版本：v{}\n将释放其他 AI 的全部认领，原消息与已读记录保留。\n",plan.to,plan.others.join("、"),plan.forwarded.len(),plan.version));
             let charter = redact::scan(&plan.charter);
@@ -111,7 +115,7 @@ impl Bridge {
         Ok(format!(
             "{}完成：{}\n{summary}",
             if plan.is_some() { "交接" } else { "导出" },
-            redact::scan(&destination.to_string_lossy()).text
+            redact::scan(&preview::display_path(&destination)).text
         ))
     }
 }

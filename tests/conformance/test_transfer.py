@@ -25,6 +25,7 @@ class ExportTests(TransferCase):
             self.assertIn("https://[已打码：URL凭据]@example.com/a.git", stdout)
             self.assertIn("提交并推送后内容可能公开", stdout)
             self.assertIn("共打码", stdout)
+            self.assertNotIn("\\\\?\\", stdout + preview)
             self.assertFalse(destination.exists())
             self.assertFalse(destination.parent.exists())
             self.assertEqual(self.snapshot(), before)

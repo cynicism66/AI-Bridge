@@ -81,7 +81,12 @@ impl Bridge {
                 r.write.join("、")
             }
         });
-        Ok(Some(format!("认领失败：以下文件超出你（{}，职务：{slot}）的可写范围：{}。你的可写范围：{range}。如确需修改，请先用 send_message 和规划方或用户协商。", self.agent, invalid.join("、"))))
+        let contact = if slot == "规划审查" {
+            "用户"
+        } else {
+            "规划方或用户"
+        };
+        Ok(Some(format!("认领失败：以下文件超出你（{}，职务：{slot}）的可写范围：{}。你的可写范围：{range}。如确需修改，请先用 send_message 和{contact}协商。", self.agent, invalid.join("、"))))
     }
 }
 #[cfg(test)]
