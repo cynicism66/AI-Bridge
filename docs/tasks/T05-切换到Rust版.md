@@ -129,7 +129,8 @@ MSIX 事故的处理做得很好：先检测祖先进程有没有包身份，安
 ### 待完成的真实验收
 - 等待用户在自己的 Windows Terminal PowerShell 执行 `Test-Path "$env:USERPROFILE\.bridge\bin\bridge-mcp.exe"` 并回报 True。
 - 等待 Codex 和 Claude 分别重启或重连后，使用实际会话中的 MCP 调用成功，并核对两个进程的新路径；仓库 exe 的临时 MCP 子进程仅用于公告板协作，不计作客户端验收。
-- 等待本次提交的 GitHub CI，结果及链接将在通过后补入。
+- 实现提交 `1af4691` 的 [GitHub CI](https://github.com/cynicism66/AI-Bridge/actions/runs/36364821672) 六个任务全部成功，包括 Windows PS5.1/7 新目录安装与占用保护测试。
+- 新安装文件的独立诊断已通过：临时 BRIDGE_DB 下 ping 返回 `result={}`；`GetMappedFileNameW` 得到 `\Device\HarddiskVolume3\Users\wangq\.bridge\bin\bridge-mcp.exe`，确认该诊断进程没有从 LocalCache 加载。这不是客户端实际重连验收，不替代上面两项。
 
 ### 清理说明（只说明，不代删）
 - `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\AI Bridge\` 是 Claude 仍在使用的旧私有副本。必须等 Claude 切换到新路径、重连并验证成功后，由用户自行删除。此次未删除，也未覆盖运行中的旧 exe。

@@ -23,9 +23,9 @@ T05 把 `bridge-mcp.exe` 装在 `%LOCALAPPDATA%\AI Bridge\bin\`，结果出了�
 - [ ] 安装脚本安装到 `%USERPROFILE%\.bridge\bin\`；用户在自己的 PowerShell（Windows Terminal 里的）中用 `Test-Path` 能看到文件
 - [x] 两个配置文件和 `.bak-t05b` 的 diff 只有 `bridge` 的 command 那一行
 - [ ] 真实环境验证：Codex 和 Claude 分别重启或重连之后，实际 MCP 调用成功；`Get-CimInstance` 显示两个 bridge-mcp.exe 的路径都是 `C:\Users\wangq\.bridge\bin\bridge-mcp.exe`
-- [ ] 契约测试、`cargo fmt`、`clippy`、`test`、`legacy` 测试全部通过；CI 全绿
+- [x] 契约测试、`cargo fmt`、`clippy`、`test`、`legacy` 测试全部通过；CI 全绿
 - [x] README、AGENTS 已更新；报告已补 T05b 一节
 
 ## 完成报告
 
-代码修改、安装及已授权的配置切换已完成；本地检查全部通过，真实客户端重连和用户侧 Test-Path 验收待完成。详细经过、配置差异证据及清理说明见 [T05 报告的 T05b 节](T05-切换到Rust版.md#t05b安装位置移出-appdata2026-09-28)。CI 结果将在推送后补充。
+代码修改、安装及已授权的配置切换已完成；本地检查全部通过，真实客户端重连和用户侧 Test-Path 验收待完成。详细经过、配置差异证据及清理说明见 [T05 报告的 T05b 节](T05-切换到Rust版.md#t05b安装位置移出-appdata2026-09-28)。实现已提交为 `1af4691`，[CI 六个任务全部通过](https://github.com/cynicism66/AI-Bridge/actions/runs/36364821672)。安装文件的独立诊断确认实际映像位于 `.bridge/bin/`；最后两项用户/客户端验收尚未收到结果，因此本任务尚未最终结项。

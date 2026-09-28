@@ -161,7 +161,7 @@ Copy-Item -LiteralPath "$env:USERPROFILE\.codex\config.toml.bak-t05b" -Destinati
 
 Claude 的旧私有目录 `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\AI Bridge\` 由用户在 Claude 已切换新路径、重连成功后自行清理，安装脚本不删除它。更早的 `.bak-t05` 备份继续保留。
 
-## T05 历史回滚（恢复 Python）
+## T05 回滚
 
 切换前的完整配置备份为 `~/.claude.json.bak-t05` 和 `~/.codex/config.toml.bak-t05`。
 退出两个 app 后，先恢复旧配置引用的入口和源码，再恢复配置：
