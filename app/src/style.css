@@ -10,3 +10,23 @@ main { min-width: 0; display: flex; flex-direction: column; flex: 1; }.project-h
 .chat-tab { padding: 0; overflow: hidden; }.chat-content { display: flex; flex-direction: column; height: 100%; }.messages { flex: 1; overflow: auto; padding: 22px 32px; }.older { display: block !important; margin: 0 auto 20px; }.empty-chat { text-align: center; padding: 70px 10px; color: var(--muted); }.message { display: flex; gap: 12px; margin: 0 0 24px; }.message-main { min-width: 0; flex: 1; }.message-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; font-size: 11px; color: var(--muted); margin: 1px 0 9px; }.message-heading strong { color: var(--colorNeutralForeground1); font-size: 12px; }.message-heading time { margin-left: auto; font-size: 10px; }.message-body { padding: 12px 15px; background: var(--surface); border: 1px solid var(--line); border-radius: 0 9px 9px 9px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }.from-human .message-body { background: var(--select); }.composer { border-top: 1px solid var(--line); padding: 18px 32px 20px; background: var(--surface); }.composer>.fui-Textarea { width: 100%; min-height: 85px; }.composer-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }.composer-actions label { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }.fui-MessageBar { flex-shrink: 0; }.shell :focus-visible { outline-offset: 3px; }
 @media(max-width: 1000px) { .sidebar { width: 244px; }.project-header { padding: 23px 22px 15px; }.tab-content { padding: 20px 22px; }.chat-tab { padding: 0; }.messages,.composer { padding-left: 22px; padding-right: 22px; }.session-grid { grid-template-columns: 1fr; }.claim-row { flex-wrap: wrap; } }
 .status-dot.unread { background: #db354d; }
+
+.management-modal { width: min(850px, calc(100vw - 48px)); max-width: 850px; }
+.management-modal [role="dialog"] { max-height: 90vh; }
+.management-modal pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.management-modal .fui-DialogContent { max-height: 65vh; overflow-y: auto; padding-right: 12px; }
+.form-stack { display: flex; flex-direction: column; gap: 16px; padding: 12px 0; }
+.wizard-steps { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--colorNeutralStroke2); }
+.wizard-steps span { padding: 6px 8px; border-radius: 6px; color: var(--colorNeutralForeground3); }
+.wizard-steps .current { color: var(--colorBrandForeground1); background: var(--colorBrandBackground2); font-weight: 600; }
+.check-list, .button-row, .filter-row { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.filter-row > * { flex: 1; min-width: 150px; }
+.validation { color: var(--colorPaletteRedForeground1); margin: 4px 0; }
+.preview-body { padding: 16px; background: var(--colorNeutralBackground3); border-radius: 8px; font-size: 13px; line-height: 1.7; }
+.role-controls { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.agent-card { align-items: start; }
+.agent-card > div { min-width: 0; }
+.hidden-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.hidden-row span, .path-value { overflow-wrap: anywhere; }
+.event-description { display: flex; align-items: start; gap: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.event-description svg { flex-shrink: 0; margin-top: 2px; }

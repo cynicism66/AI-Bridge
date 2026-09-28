@@ -1,4 +1,4 @@
-use crate::{collaboration, templates::Template, Bridge};
+use crate::{collaboration, Bridge};
 use anyhow::{bail, Result};
 
 fn relative(path: &str) -> bool {
@@ -60,7 +60,7 @@ impl Bridge {
         let Some(info) = collaboration::load(&conn, project)? else {
             return Ok(Some(crate::tools::PENDING_INIT.into()));
         };
-        let t: Template = serde_json::from_str(&info.template_json)?;
+        let t = crate::permission_edit::effective(&conn, project, &info.template_json)?;
         let roles = collaboration::roles(&conn, project)?;
         let role = roles
             .get(&self.agent)

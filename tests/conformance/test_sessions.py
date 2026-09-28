@@ -95,8 +95,11 @@ class SessionTests(ContractCase):
         old.call("update_status", project=self.project, task="三天前任务")
         viewer = self.session("claude")
         board = content(viewer.call("bridge_overview", project=self.project))
-        self.assertIn("较早的会话：codex #1（3 天前）", board)
+        self.assertIn("较早的会话（1）", board)
         self.assertNotIn("任务：三天前任务", board)
+        expanded = content(viewer.call("bridge_overview", project=self.project, include_older=True))
+        self.assertIn("任务：三天前任务", expanded)
+        self.assertIn("任务：三天前任务", self.cli("show", self.project, "--include-older"))
 
     def test_malformed_git_is_nonfatal_and_diagnostic_is_stderr_only(self):
         (self.directory / ".git").write_text("gitdir: missing\n", encoding="utf-8")

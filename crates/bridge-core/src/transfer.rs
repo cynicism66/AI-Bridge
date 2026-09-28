@@ -4,16 +4,35 @@ use crate::{
 };
 use anyhow::{bail, Result};
 use rusqlite::TransactionBehavior;
-use std::path::Path;
+use serde::Serialize;
+use std::path::{Path, PathBuf};
+
+#[derive(Clone, Serialize)]
+pub struct TransferPreview {
+    pub body: String,
+    pub summary: String,
+    pub paths: Vec<String>,
+    pub remotes: Vec<String>,
+    pub released_claims: i64,
+}
+pub struct PreparedTransfer {
+    conn: rusqlite::Connection,
+    data_version: i64,
+    project: String,
+    destination: PathBuf,
+    time: String,
+    plan: Option<handover::Plan>,
+    batch: Batch,
+    pub view: TransferPreview,
+}
 
 impl Bridge {
-    pub fn transfer_text(
+    pub fn prepare_transfer(
         &self,
         project: &str,
         out: Option<&str>,
         to: Option<&str>,
-        yes: bool,
-    ) -> Result<String> {
+    ) -> Result<PreparedTransfer> {
         let root = Path::new(project);
         let destination = repo_files::output(
             root,
@@ -86,15 +105,75 @@ impl Bridge {
         for (k, n) in extra.counts {
             *stats.entry(k).or_default() += n;
         }
-        let (_, message) = preview::create(root, &extra.text, &batch)?;
         let summary = redact::Redacted {
             text: String::new(),
             counts: stats,
         }
         .summary();
-        if !preview::confirm(&format!("{message}{summary}\n"), yes)? {
+        let released_claims = if let Some(plan) = &plan {
+            conn.query_row(
+                "SELECT count(*) FROM claims WHERE project=? AND agent!=?",
+                rusqlite::params![project, plan.to],
+                |r| r.get(0),
+            )?
+        } else {
+            0
+        };
+        let view = TransferPreview {
+            body: format!("{}\n待释放认领：{}", extra.text, released_claims),
+            summary,
+            paths: batch
+                .paths()
+                .iter()
+                .map(|p| redact::scan(&preview::display_path(p)).text)
+                .collect(),
+            remotes: repo_files::remotes(root)?
+                .iter()
+                .map(|s| redact::scan(s).text)
+                .collect(),
+            released_claims,
+        };
+        Ok(PreparedTransfer {
+            conn,
+            data_version,
+            project: project.into(),
+            destination,
+            time,
+            plan,
+            batch,
+            view,
+        })
+    }
+    pub fn transfer_text(
+        &self,
+        project: &str,
+        out: Option<&str>,
+        to: Option<&str>,
+        yes: bool,
+    ) -> Result<String> {
+        let prepared = self.prepare_transfer(project, out, to)?;
+        let (_, message) =
+            preview::create(Path::new(project), &prepared.view.body, &prepared.batch)?;
+        if !preview::confirm(&format!("{message}{}\n", prepared.view.summary), yes)? {
             return Ok("已取消；仓库文件和协作数据未改变，预览文件保留供查看。".into());
         }
+        prepared.commit()
+    }
+}
+impl PreparedTransfer {
+    pub fn commit(self) -> Result<String> {
+        let Self {
+            mut conn,
+            data_version,
+            project,
+            destination,
+            time,
+            plan,
+            mut batch,
+            view,
+        } = self;
+        let root = Path::new(&project);
+        let summary = view.summary;
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let current: i64 = tx.query_row("PRAGMA data_version", [], |r| r.get(0))?;
         if current != data_version {
@@ -105,7 +184,7 @@ impl Bridge {
             repo_files::output(root, &path.to_string_lossy())?;
         }
         if let Some(plan) = &plan {
-            plan.apply(&tx, project, &time)?;
+            plan.apply(&tx, &project, &time)?;
         }
         batch.apply()?;
         if let Err(error) = tx.commit() {

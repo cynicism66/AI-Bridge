@@ -44,15 +44,24 @@ pub(crate) fn touch(
             n += 1;
         }
         tx.execute(
-            "UPDATE OR REPLACE status SET session_no=? WHERE project=? AND session_id=?",
-            params![n, project.key, id],
-        )?;
-        tx.execute(
             "UPDATE claims SET session_no=? WHERE project=? AND session_id=?",
             params![n, project.key, id],
         )?;
         n
     };
+    // 编号属于当前会话；复用前清除旧拥有者，防止旧状态挂到新身份下。
+    tx.execute(
+        "DELETE FROM status WHERE project=? AND agent=? AND session_no=? AND session_id!=?",
+        params![project.key, agent, number, id],
+    )?;
+    tx.execute(
+        "DELETE FROM sessions WHERE project=? AND agent=? AND session_no=? AND id!=?",
+        params![project.key, agent, number, id],
+    )?;
+    tx.execute(
+        "UPDATE status SET session_no=? WHERE project=? AND session_id=?",
+        params![number, project.key, id],
+    )?;
     tx.execute("INSERT INTO sessions (id,project,agent,session_no,worktree,branch,pid,started_at,last_active) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(id,project) DO UPDATE SET
                 session_no=excluded.session_no,worktree=excluded.worktree,branch=excluded.branch,last_active=excluded.last_active",
                params![id,project.key,agent,number,project.worktree,project.branch,std::process::id(),time,time])?;

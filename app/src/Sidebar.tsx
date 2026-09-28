@@ -4,13 +4,21 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { zh } from './i18n/zh-CN';
 import { projectName, trayState, unreadTotal } from './logic';
-import type { Snapshot } from './types';
-interface Props { data: Snapshot; selected: string | null; busy: boolean; select: (p: string) => void; run: (op: () => Promise<unknown>) => Promise<boolean> }
-export function Sidebar({ data, selected, busy, select, run }: Props) {
-  const toggle = (project: string, enabled: boolean) => run(() => invoke('set_switch', { project, agent: null, enabled }));
+import type { Detail, Snapshot } from './types';
+interface Props { init: (p: string) => void; settings: () => void; data: Snapshot; selected: string | null; busy: boolean; select: (p: string) => void; run: (op: () => Promise<unknown>) => Promise<boolean> }
+export function Sidebar({ data, selected, busy, select, run, init, settings }: Props) {
+  async function setSwitch(project: string, enabled: boolean) {
+    const key = await invoke<string>('set_switch', { project, agent: null, enabled });
+    if (enabled) {
+      select(key);
+      const detail = await invoke<Detail>('project_detail', { project: key });
+      if (!detail.charter) init(key);
+    }
+  }
+  const toggle = (project: string, enabled: boolean) => run(() => setSwitch(project, enabled));
   async function add() {
     const folder = await open({ directory: true, multiple: false, title: zh.chooseFolder });
-    if (typeof folder === 'string') { await invoke('set_switch', { project: folder, agent: null, enabled: true }); }
+    if (typeof folder === 'string') await setSwitch(folder, true);
   }
   return <aside className="sidebar">
     <div className="brand"><span className="brand-mark" aria-hidden="true">B</span><div><strong>{zh.appName}</strong><small>{zh.tagline}</small></div></div>
@@ -34,6 +42,7 @@ export function Sidebar({ data, selected, busy, select, run }: Props) {
       <Button className="add-project" appearance="subtle" icon={<Add20Regular/>} disabled={busy} onClick={() => void run(add)}>{zh.addProject}</Button>
     </div>
     <div className="global-control"><div><strong>{zh.globalSwitch}</strong><small>{data.global ? zh.globalOn : zh.globalOff}</small></div><Switch checked={data.global} disabled={busy} aria-label={zh.globalSwitch} onChange={(_, d) => void run(() => invoke('set_switch', { project: null, agent: null, enabled: d.checked }))}/></div>
+    <Button appearance="subtle" onClick={settings}>{zh.softwareSettings}</Button>
     <div className="sidebar-foot"><span className={`status-dot ${trayState(data.global, unreadTotal(data.projects))}`}/>{data.global ? zh.enabled : zh.disabled}<span>{zh.unread} · {unreadTotal(data.projects)}</span></div>
   </aside>;
 }

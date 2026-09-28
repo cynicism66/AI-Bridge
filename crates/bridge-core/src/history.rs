@@ -100,6 +100,15 @@ pub(crate) fn format_event(row: &Value) -> Result<String> {
             text(&data, "slot")
         ),
         "handover" => format!("交接给 {}：独立开发", text(&data, "to")),
+        "permission" => format!(
+            "{}职务 {} 的权限",
+            if data["reset"].as_bool().unwrap_or(false) {
+                "重置"
+            } else {
+                "修改"
+            },
+            text(&data, "slot")
+        ),
         "switch" => format!(
             "{}{}",
             if data["enabled"].as_i64().unwrap_or(0) != 0 {

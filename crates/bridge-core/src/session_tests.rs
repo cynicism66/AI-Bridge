@@ -50,3 +50,48 @@ fn random_identifiers_are_distinct() -> Result<()> {
     assert_ne!(a, b);
     Ok(())
 }
+
+#[test]
+fn reuse_removes_legacy_status_but_preserves_claim_ownership_and_history() -> Result<()> {
+    let mut conn = Connection::open_in_memory()?;
+    crate::database::migrate(&mut conn)?;
+    let p = Project {
+        key: "/p".into(),
+        worktree: "/p".into(),
+        branch: "main".into(),
+    };
+    let legacy = "legacy:/p:claude";
+    let old = "2026-01-01 00:00:00";
+    touch(&mut conn, legacy, "claude", &p, old)?;
+    conn.execute(
+        "INSERT INTO status VALUES ('/p','claude','旧任务','','','',?,1,?)",
+        params![old, legacy],
+    )?;
+    conn.execute(
+        "INSERT INTO claims VALUES ('/p','held','claude','',?,'2030-01-01 00:00:00',1,?)",
+        params![old, legacy],
+    )?;
+    assert_eq!(
+        touch(&mut conn, "current", "claude", &p, "2026-01-01 02:00:01")?,
+        1
+    );
+    assert_eq!(
+        conn.query_row("SELECT COUNT(*) FROM status", [], |r| r.get::<_, i64>(0))?,
+        0
+    );
+    assert_eq!(
+        conn.query_row("SELECT id FROM sessions", [], |r| r.get::<_, String>(0))?,
+        "current"
+    );
+    assert_eq!(
+        conn.query_row("SELECT session_id FROM claims", [], |r| r
+            .get::<_, String>(0))?,
+        legacy
+    );
+    assert_eq!(
+        conn.query_row("SELECT COUNT(*) FROM events WHERE kind='status'", [], |r| r
+            .get::<_, i64>(0))?,
+        1
+    );
+    Ok(())
+}

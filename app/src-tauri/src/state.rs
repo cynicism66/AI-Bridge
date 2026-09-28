@@ -9,6 +9,8 @@ use std::{collections::BTreeSet, path::PathBuf, sync::Mutex, time::SystemTime};
 
 pub type Shared = Mutex<AppState>;
 pub struct AppState {
+    pub pending: Option<(u64, crate::management::Pending)>,
+    pub preview_serial: u64,
     pub bridge: Bridge,
     pub settings: AppSettings,
     pub settings_path: PathBuf,
@@ -41,6 +43,8 @@ impl AppState {
             settings.save(&settings_path)?;
         }
         let mut state = Self {
+            pending: None,
+            preview_serial: 0,
             bridge,
             detector,
             home,
@@ -79,7 +83,7 @@ impl AppState {
         let known: BTreeSet<_> = self.projects.iter().map(|p| p.project.clone()).collect();
         self.discovered = discover(&self.home, &known, &self.settings.hidden_projects);
         self.next_expiry = self.bridge.database.open()?.query_row(
-            "SELECT MIN(expires_at) FROM claims WHERE expires_at>=?",
+            "SELECT MIN(t) FROM (SELECT expires_at AS t FROM claims UNION ALL SELECT datetime(last_active,'+2 hours') FROM sessions) WHERE t>=?",
             [now],
             |r| r.get(0),
         )?;

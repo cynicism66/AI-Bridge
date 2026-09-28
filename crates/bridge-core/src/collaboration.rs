@@ -1,9 +1,4 @@
-use crate::{
-    database::query,
-    format::text,
-    templates::{Assignments, Template},
-    Bridge,
-};
+use crate::{database::query, format::text, templates::Assignments, Bridge};
 use anyhow::Result;
 use rusqlite::{Connection, OptionalExtension};
 
@@ -88,7 +83,7 @@ impl Bridge {
             }
         }
         let assignments = roles(&tx, project)?;
-        let t: Template = serde_json::from_str(&info.template_json)?;
+        let t = crate::permission_edit::effective(&tx, project, &info.template_json)?;
         let mine = assignments
             .get(agent)
             .and_then(|slot| t.roles.iter().find(|r| &r.slot == slot));

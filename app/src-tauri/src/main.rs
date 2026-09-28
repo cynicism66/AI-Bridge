@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod commands;
 mod locale;
+mod management;
 #[cfg(windows)]
 mod notification_activation;
 mod notifications;
@@ -54,11 +55,28 @@ fn main() {
             commands::mark_read,
             commands::set_switch,
             commands::hide_project,
-            commands::window_ready
+            commands::window_ready,
+            management::management,
+            management::template_info,
+            management::preview_init,
+            management::preview_transfer,
+            management::confirm_preview,
+            management::cancel_preview,
+            management::set_role,
+            management::set_permission,
+            management::validate_write,
+            management::history_page,
+            management::app_settings,
+            management::save_settings
         ])
         .setup(|app| {
             app.manage(Shared::new(state::AppState::new()?));
-            if notification_activation::register(app.handle()).is_err() {
+            // 调试隔离实例不注册系统通知；release 永远执行正常注册。
+            let isolated = cfg!(debug_assertions)
+                && std::env::var_os("BRIDGE_UI_TEST").is_some()
+                && std::env::var_os("BRIDGE_DB").is_some()
+                && std::env::var_os("BRIDGE_APP_HOME").is_some();
+            if !isolated && notification_activation::register(app.handle()).is_err() {
                 report(app.handle(), locale::text("notificationFailed").into());
             }
             tray::setup(app.handle())?;

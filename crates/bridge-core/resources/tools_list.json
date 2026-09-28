@@ -13,6 +13,10 @@
           "mark_read": {
             "type": "boolean",
             "description": "是否把显示的未读消息标为已读，默认 true"
+          },
+          "include_older": {
+            "type": "boolean",
+            "description": "是否展开超过两小时未活跃的会话，默认 false"
           }
         },
         "required": [

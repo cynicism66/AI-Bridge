@@ -184,7 +184,7 @@ fn all_assignment_keywords_and_value_boundaries() {
     );
     assert_eq!(
         scan("Authorization: Bearer super-value").text,
-        "Authorization: [已打码：赋值凭据]"
+        "Authorization: Bearer [已打码：Bearer]"
     );
 }
 #[test]
@@ -226,5 +226,30 @@ fn assignment_values_still_mask_entire_private_key_blocks() {
         assert!(!result.text.contains("private-material"));
         assert!(result.text.ends_with("\nnext line"));
         assert_eq!(result.counts.values().sum::<usize>(), 1);
+    }
+}
+
+#[test]
+fn auth_matches_whole_identifier_segments() {
+    for key in [
+        "author",
+        "authority",
+        "AUTHORITY",
+        "authorization",
+        "myAuthor",
+    ] {
+        let source = format!("{key}=ordinary");
+        assert_eq!(scan(&source).text, source);
+    }
+    for key in [
+        "AUTH",
+        "auth_token",
+        "x-auth",
+        "authToken",
+        "myAuthValue",
+        "X.AUTH",
+    ] {
+        let output = scan(&format!("{key}: sample-secret")).text;
+        assert!(!output.contains("sample-secret"), "{key}");
     }
 }

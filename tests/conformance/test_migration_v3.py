@@ -22,7 +22,7 @@ class MigrationV3Tests(ContractCase):
                         ("status", "claims", "messages", "reads", "settings", "events")}
         self.cli("status")  # 触发迁移，不创建 MCP 会话或清理历史认领。
         with closing(sqlite3.connect(self.database)) as db:
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 6)
             for table, before in original.items():
                 after = db.execute(f"SELECT * FROM {table}").fetchall()
                 self.assertEqual([r[:len(before[0])] for r in after], before)

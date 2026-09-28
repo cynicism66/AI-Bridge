@@ -5,12 +5,23 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppSettings {
+    pub notifications_enabled: bool,
     pub hidden_projects: BTreeSet<String>,
     pub close_tip_shown: bool,
     pub last_notified_id: Option<i64>,
+}
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            notifications_enabled: true,
+            hidden_projects: BTreeSet::new(),
+            close_tip_shown: false,
+            last_notified_id: None,
+        }
+    }
 }
 impl AppSettings {
     pub fn path(home: &Path) -> PathBuf {

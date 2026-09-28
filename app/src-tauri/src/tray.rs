@@ -89,18 +89,19 @@ pub fn refresh(app: &tauri::AppHandle) -> tauri::Result<()> {
             s.projects.iter().any(|p| p.unread > 0),
             s.projects
                 .iter()
+                .filter(|p| p.enabled)
                 .map(|p| (p.project.clone(), p.enabled))
-                .chain(s.discovered.iter().map(|p| (p.project.clone(), false)))
                 .collect::<Vec<_>>(),
         )
     };
     let menu = Menu::new(app)?;
+    let paths: Vec<_> = projects.iter().map(|(p, _)| p.clone()).collect();
     for (project, enabled) in projects {
         // Windows 菜单把 & 当快捷键标记；显示路径必须转义。
         menu.append(&CheckMenuItem::with_id(
             app,
             format!("project:{project}"),
-            project.replace('&', "&&"),
+            project_label(&project, &paths).replace('&', "&&"),
             true,
             enabled,
             None::<&str>,
@@ -136,8 +137,38 @@ pub fn refresh(app: &tauri::AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+fn project_label(project: &str, paths: &[String]) -> String {
+    let path = std::path::Path::new(project);
+    let leaf = path.file_name().unwrap_or(path.as_os_str());
+    if paths
+        .iter()
+        .filter(|p| std::path::Path::new(p).file_name() == Some(leaf))
+        .count()
+        > 1
+    {
+        let parent = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .unwrap_or_default();
+        format!("{}/{}", parent.to_string_lossy(), leaf.to_string_lossy())
+    } else {
+        leaf.to_string_lossy().into_owned()
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn project_names_disambiguate_identical_leaves() {
+        let paths: Vec<String> = vec![
+            "d:/one/demo".into(),
+            "d:/two/demo".into(),
+            "d:/unique".into(),
+        ];
+        assert_eq!(super::project_label(&paths[0], &paths), "one/demo");
+        assert_eq!(super::project_label(&paths[1], &paths), "two/demo");
+        assert_eq!(super::project_label(&paths[2], &paths), "unique");
+    }
     #[test]
     fn three_tray_states_have_distinct_pixels() {
         let off = super::icon(false, false);

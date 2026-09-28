@@ -48,6 +48,10 @@ impl Plan {
         })
     }
     pub fn apply(&self, conn: &Connection, project: &str, time: &str) -> Result<()> {
+        conn.execute(
+            "DELETE FROM permission_overrides WHERE project=?",
+            [project],
+        )?;
         conn.execute("DELETE FROM role_assignments WHERE project=?", [project])?;
         conn.execute(
             "INSERT INTO role_assignments VALUES (?,?,'独立开发')",

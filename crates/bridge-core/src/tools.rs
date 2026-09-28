@@ -84,10 +84,11 @@ impl Bridge {
         }
         self.touch_session(&context)?;
         match name {
-            "bridge_overview" => self.overview(
+            "bridge_overview" => self.overview_with_sessions(
                 &project,
                 &self.agent,
                 args["mark_read"].as_bool().unwrap_or(true),
+                args["include_older"].as_bool().unwrap_or(false),
             ),
             "update_status" => self.update(&project, args),
             "send_message" => {
@@ -145,6 +146,15 @@ impl Bridge {
     }
 
     pub fn overview(&self, project: &str, agent: &str, mark_read: bool) -> Result<String> {
+        self.overview_with_sessions(project, agent, mark_read, false)
+    }
+    pub fn overview_with_sessions(
+        &self,
+        project: &str,
+        agent: &str,
+        mark_read: bool,
+        include_older: bool,
+    ) -> Result<String> {
         let mut conn = self.database.open()?;
         let transaction =
             conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
@@ -164,7 +174,7 @@ impl Bridge {
             messages::mark_read(&transaction, &unread, agent)?;
         }
         transaction.commit()?;
-        let statuses = format::statuses(&statuses)?;
+        let statuses = format::statuses(&statuses, include_older)?;
         let identity = if agent == "human" {
             agent.to_owned()
         } else {

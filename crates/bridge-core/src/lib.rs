@@ -3,7 +3,9 @@ mod collaboration;
 mod documents;
 mod file_batch;
 mod handover;
+pub mod init_draft;
 pub mod initialization;
+pub mod permission_edit;
 mod permissions;
 mod preview;
 pub mod redact;
@@ -20,7 +22,9 @@ pub mod desktop;
 pub mod discovery;
 mod format;
 pub mod history;
+pub mod history_page;
 pub mod human;
+pub mod management;
 mod messages;
 pub mod paths;
 pub mod protocol;
@@ -73,5 +77,9 @@ mod switch_tests;
 #[cfg(test)]
 mod test_support;
 
+#[cfg(test)]
+mod history_page_tests;
+#[cfg(test)]
+mod management_tests;
 #[cfg(test)]
 mod template_tests;

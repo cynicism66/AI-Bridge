@@ -2,6 +2,10 @@ use anyhow::{bail, Result};
 use bridge_core::{paths, Bridge};
 use clap::{Args, Parser, Subcommand};
 
+#[cfg(test)]
+#[path = "cli_tests.rs"]
+mod tests;
+
 #[derive(Parser)]
 #[command(name = "bridge", about = "Bridge：由用户控制的协作公告板")]
 struct Cli {
@@ -65,6 +69,19 @@ enum Command {
         #[arg(num_args = 2..=3, value_names = ["项目或AI", "AI或职务", "职务"])]
         values: Vec<String>,
     },
+    /// 编辑项目职务权限（仅用户操作；未指定的列表保留，空字符串清空）
+    Permission {
+        #[arg(required = true, num_args = 1..=2, value_names = ["项目或职务", "职务"])]
+        values: Vec<String>,
+        #[arg(long, action = clap::ArgAction::Append)]
+        allow: Option<Vec<String>>,
+        #[arg(long, action = clap::ArgAction::Append)]
+        deny: Option<Vec<String>>,
+        #[arg(long, action = clap::ArgAction::Append)]
+        write: Option<Vec<String>>,
+        #[arg(long, conflicts_with_all = ["allow", "deny", "write"])]
+        reset: bool,
+    },
     /// 导出协作记录，预览后由用户确认
     Export {
         #[command(flatten)]
@@ -84,7 +101,13 @@ enum Command {
         yes: bool,
     },
     /// 查看公告板
-    Show(Project),
+    Show {
+        #[command(flatten)]
+        project: Project,
+        /// 展开超过两小时未活跃的会话
+        #[arg(long)]
+        include_older: bool,
+    },
     /// 读取给 human 的未读消息
     Read(Project),
     /// 以 human 身份发消息
@@ -103,7 +126,7 @@ enum Command {
         limit: i64,
         #[arg(long)]
         agent: Option<String>,
-        #[arg(long, value_parser = ["status", "message", "claim", "release", "expire", "switch", "agent_switch", "init", "role", "handover"])]
+        #[arg(long, value_parser = ["status", "message", "claim", "release", "expire", "switch", "agent_switch", "init", "role", "handover", "permission"])]
         kind: Option<String>,
     },
 }
@@ -171,6 +194,29 @@ pub fn run(bridge: &Bridge) -> Result<Option<String>> {
             };
             bridge.role_text(&paths::cli_project(project)?, agent, slot)?
         }
+        Command::Permission {
+            values,
+            allow,
+            deny,
+            write,
+            reset,
+        } => {
+            let (project, slot) = if values.len() == 1 {
+                (".", &values[0])
+            } else {
+                (values[0].as_str(), &values[1])
+            };
+            bridge.permission_text(
+                &paths::cli_project(project)?,
+                slot,
+                bridge_core::permission_edit::PermissionPatch {
+                    allow,
+                    deny,
+                    write,
+                    reset,
+                },
+            )?
+        }
         Command::Export { project, out, yes } => {
             bridge.transfer_text(&project.resolve()?, out.as_deref(), None, yes)?
         }
@@ -178,7 +224,10 @@ pub fn run(bridge: &Bridge) -> Result<Option<String>> {
             bridge.transfer_text(&project.resolve()?, None, Some(&to), yes)?
         }
         Command::Status => bridge.status_text()?,
-        Command::Show(args) => bridge.show_text(&args.resolve()?)?,
+        Command::Show {
+            project,
+            include_older,
+        } => bridge.show_sessions_text(&project.resolve()?, include_older)?,
         Command::Read(args) => bridge.read_text(&args.resolve()?)?,
         Command::Post { values, to } => {
             let (project, content) = if values.len() == 1 {

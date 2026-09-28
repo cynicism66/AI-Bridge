@@ -70,6 +70,9 @@ pub fn deliver(app: &tauri::AppHandle) -> anyhow::Result<()> {
             settings.last_notified_id = Some(m.id);
             settings.save(&s.settings_path)?;
             s.settings = settings;
+            if !s.settings.notifications_enabled {
+                continue;
+            }
             if show(
                 app,
                 &format!("{} · {}", text("appName"), m.sender),

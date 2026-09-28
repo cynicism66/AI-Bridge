@@ -36,7 +36,8 @@ pub(super) fn parse(s: &str, i: usize) -> Option<Value> {
     if start == at {
         return None;
     }
-    let key = s[start..at].to_lowercase();
+    let raw_key = &s[start..at];
+    let key = raw_key.to_lowercase();
     if let Some(quote) = key_quote {
         if s.as_bytes().get(at) != Some(&quote) {
             return None;
@@ -67,10 +68,10 @@ pub(super) fn parse(s: &str, i: usize) -> Option<Value> {
         "access_key",
         "private_key",
         "credential",
-        "auth",
     ]
     .iter()
-    .any(|keyword| key.contains(keyword));
+    .any(|keyword| key.contains(keyword))
+        || auth_segment(raw_key);
     let quote = s
         .as_bytes()
         .get(at)
@@ -114,4 +115,23 @@ pub(super) fn parse(s: &str, i: usize) -> Option<Value> {
         next,
         sensitive: sensitive && !s[start..end].starts_with("[已打码："),
     })
+}
+
+fn auth_segment(key: &str) -> bool {
+    let chars: Vec<char> = key.chars().collect();
+    let mut parts = String::new();
+    for (i, &c) in chars.iter().enumerate() {
+        if "_-.".contains(c)
+            || (i > 0
+                && c.is_uppercase()
+                && (chars[i - 1].is_lowercase()
+                    || chars.get(i + 1).is_some_and(|c| c.is_lowercase())))
+        {
+            parts.push(' ');
+        }
+        if !"_-.".contains(c) {
+            parts.extend(c.to_lowercase());
+        }
+    }
+    parts.split_whitespace().any(|s| s == "auth")
 }

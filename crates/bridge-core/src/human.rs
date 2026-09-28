@@ -92,8 +92,11 @@ impl Bridge {
     }
 
     pub fn show_text(&self, project: &str) -> Result<String> {
+        self.show_sessions_text(project, false)
+    }
+    pub fn show_sessions_text(&self, project: &str, include_older: bool) -> Result<String> {
         let state = self.switch_state(Some(project))?;
-        let overview = self.overview(project, "human", false)?;
+        let overview = self.overview_with_sessions(project, "human", false, include_older)?;
         let agents = self.agents_text(project)?;
         let collaboration = self.collaboration_text(project)?;
         let messages = format::section(&self.recent(project)?, "  （无）", format::message);

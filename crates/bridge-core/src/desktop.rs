@@ -45,7 +45,11 @@ impl Bridge {
                 })
             })
             .collect::<Result<Vec<_>>>()?;
-        let sessions = decode(query(&tx, "SELECT w.agent,w.session_no,w.branch,w.worktree,COALESCE(s.task,'') AS task,COALESCE(s.progress,'') AS progress,COALESCE(s.blockers,'') AS blockers,COALESCE(s.next_step,'') AS next_step,COALESCE(s.updated_at,w.last_active) AS updated_at FROM sessions w LEFT JOIN status s ON s.project=w.project AND s.session_id=w.id WHERE w.project=? ORDER BY w.agent,w.session_no,w.started_at", [project])?)?;
+        let cutoff = (chrono::NaiveDateTime::parse_from_str(&now()?, crate::TIME_FMT)?
+            - chrono::Duration::hours(2))
+        .format(crate::TIME_FMT)
+        .to_string();
+        let sessions = decode(query(&tx, "SELECT w.last_active,w.last_active < ? AS older,w.agent,w.session_no,w.branch,w.worktree,COALESCE(s.task,'') AS task,COALESCE(s.progress,'') AS progress,COALESCE(s.blockers,'') AS blockers,COALESCE(s.next_step,'') AS next_step,COALESCE(s.updated_at,w.last_active) AS updated_at FROM sessions w LEFT JOIN status s ON s.project=w.project AND s.session_id=w.id WHERE w.project=? ORDER BY w.agent,w.session_no,w.started_at", params![cutoff,project])?)?;
         let claims = decode(query(
             &tx,
             "SELECT * FROM claims WHERE project=? AND expires_at>=? ORDER BY agent,path",

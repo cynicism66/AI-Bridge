@@ -6,14 +6,14 @@ use bridge_core::{
 use serde_json::{json, Value};
 use tauri::{Manager, State};
 
-type Reply<T> = Result<T, String>;
-fn error(e: impl std::fmt::Display) -> String {
+pub(crate) type Reply<T> = Result<T, String>;
+pub(crate) fn error(e: impl std::fmt::Display) -> String {
     e.to_string()
 }
-fn lock(s: &Shared) -> Reply<std::sync::MutexGuard<'_, crate::state::AppState>> {
+pub(crate) fn lock(s: &Shared) -> Reply<std::sync::MutexGuard<'_, crate::state::AppState>> {
     s.lock().map_err(|_| text("stateUnavailable").into())
 }
-fn key(project: &str) -> Reply<String> {
+pub(crate) fn key(project: &str) -> Reply<String> {
     repository::resolve(project).map(|p| p.key).map_err(error)
 }
 
@@ -82,7 +82,7 @@ pub fn set_switch(
     project: Option<String>,
     agent: Option<String>,
     enabled: bool,
-) -> Reply<()> {
+) -> Reply<Option<String>> {
     let mut s = lock(&state)?;
     let project = project.as_deref().map(key).transpose()?;
     if let (Some(project), Some(agent)) = (&project, agent) {
@@ -95,7 +95,7 @@ pub fn set_switch(
             .map_err(error)?;
     }
     s.refresh(true).map_err(error)?;
-    Ok(())
+    Ok(project)
 }
 #[tauri::command]
 pub fn hide_project(state: State<'_, Shared>, project: String) -> Reply<()> {

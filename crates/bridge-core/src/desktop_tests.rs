@@ -62,12 +62,18 @@ fn settings_round_trip_and_invalid_data_preserved() -> Result<()> {
     let d = Directory::new();
     let path = AppSettings::path(&d.0);
     let mut s = AppSettings::load(&path)?;
+    assert!(s.notifications_enabled);
+    assert!(
+        serde_json::from_str::<AppSettings>(r#"{"close_tip_shown":true}"#)?.notifications_enabled
+    );
+    s.notifications_enabled = false;
     s.hidden_projects.insert("/hidden".into());
     s.close_tip_shown = true;
     s.last_notified_id = Some(80);
     s.save(&path)?;
     let actual = AppSettings::load(&path)?;
     assert_eq!(actual.last_notified_id, Some(80));
+    assert!(!actual.notifications_enabled);
     assert!(actual.close_tip_shown);
     assert!(actual.hidden_projects.contains("/hidden"));
     std::fs::write(&path, "invalid")?;

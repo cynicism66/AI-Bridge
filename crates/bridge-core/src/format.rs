@@ -98,7 +98,7 @@ pub(crate) fn section(rows: &[Value], empty: &str, formatter: fn(&Value) -> Stri
     }
 }
 
-pub(crate) fn statuses(rows: &[Value]) -> anyhow::Result<String> {
+pub(crate) fn statuses(rows: &[Value], include_older: bool) -> anyhow::Result<String> {
     use chrono::NaiveDateTime;
     let now = NaiveDateTime::parse_from_str(&crate::now()?, crate::TIME_FMT)?;
     let mut lines = Vec::new();
@@ -107,19 +107,23 @@ pub(crate) fn statuses(rows: &[Value]) -> anyhow::Result<String> {
         let age = NaiveDateTime::parse_from_str(text(row, "last_active"), crate::TIME_FMT)
             .ok()
             .map(|t| now - t);
-        if let Some(age) = age.filter(|age| age.num_seconds() > 24 * 3600) {
-            older.push(format!(
-                "{} #{}（{} 天前）",
-                text(row, "agent"),
-                row["session_no"],
-                age.num_days()
-            ));
+        if age.is_some_and(|age| age.num_seconds() > 2 * 3600) {
+            older.push(status(row));
         } else {
             lines.push(status(row));
         }
     }
     if !older.is_empty() {
-        lines.push(format!("较早的会话：{}", older.join("、")));
+        lines.push(format!(
+            "较早的会话（{}）{}",
+            older.len(),
+            if include_older {
+                format!("\n{}", older.join("\n\n"))
+            } else {
+                "：已折叠；bridge_overview 传 include_older=true 或 show --include-older 可展开。"
+                    .into()
+            }
+        ));
     }
     Ok(if lines.is_empty() {
         "  （还没有人汇报状态）".into()
