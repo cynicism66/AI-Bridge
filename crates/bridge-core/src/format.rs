@@ -46,8 +46,11 @@ pub(crate) fn status(row: &Value) -> String {
     let task = text(row, "task");
     let mut lines = vec![
         format!(
-            "【{}】更新于 {}",
+            "【{} #{}】分支 {} · 文件夹 {} · 更新于 {}",
             text(row, "agent"),
+            row["session_no"],
+            text(row, "branch"),
+            text(row, "worktree"),
             text(row, "updated_at")
         ),
         format!("  任务：{}", if task.is_empty() { "-" } else { task }),
@@ -85,4 +88,34 @@ pub(crate) fn section(rows: &[Value], empty: &str, formatter: fn(&Value) -> Stri
     } else {
         rows.iter().map(formatter).collect::<Vec<_>>().join("\n")
     }
+}
+
+pub(crate) fn statuses(rows: &[Value]) -> anyhow::Result<String> {
+    use chrono::NaiveDateTime;
+    let now = NaiveDateTime::parse_from_str(&crate::now()?, crate::TIME_FMT)?;
+    let mut lines = Vec::new();
+    let mut older = Vec::new();
+    for row in rows {
+        let age = NaiveDateTime::parse_from_str(text(row, "last_active"), crate::TIME_FMT)
+            .ok()
+            .map(|t| now - t);
+        if let Some(age) = age.filter(|age| age.num_seconds() > 24 * 3600) {
+            older.push(format!(
+                "{} #{}（{} 天前）",
+                text(row, "agent"),
+                row["session_no"],
+                age.num_days()
+            ));
+        } else {
+            lines.push(status(row));
+        }
+    }
+    if !older.is_empty() {
+        lines.push(format!("较早的会话：{}", older.join("、")));
+    }
+    Ok(if lines.is_empty() {
+        "  （还没有人汇报状态）".into()
+    } else {
+        lines.join("\n")
+    })
 }

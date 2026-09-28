@@ -2,7 +2,7 @@ use crate::{
     claims::purge,
     database::query,
     format::{self, text},
-    messages, paths, Bridge,
+    messages, paths, repository, Bridge,
 };
 use anyhow::{bail, Result};
 use serde_json::Value;
@@ -36,7 +36,8 @@ impl Bridge {
             if !self.switch_state(None)?.global_enabled {
                 return Ok(GLOBAL_OFF.into());
             }
-            let rows = self.projects()?;
+            let rows = self.projects_for(Some(&self.agent))?;
+            self.refresh_sessions()?;
             if rows.is_empty() {
                 return Ok("还没有项目使用过 Bridge。".into());
             }
@@ -64,14 +65,19 @@ impl Bridge {
         {
             bail!("未知工具：{name}");
         }
-        let project = paths::project(text(args, "project"))?;
-        let state = self.switch_state(Some(&project))?;
+        let context = repository::resolve(text(args, "project"))?;
+        let project = context.key.clone();
+        let state = self.access_state(Some(&project), Some(&self.agent))?;
         if !state.global_enabled {
             return Ok(GLOBAL_OFF.into());
         }
         if !state.project_enabled {
             return Ok(PROJECT_OFF.into());
         }
+        if !state.agent_enabled {
+            return Ok(format!("Bridge 在此项目中未对你（{}）开启（由用户控制）。请忽略协作规则，正常工作；本次会话不必再调用 Bridge 工具。", self.agent));
+        }
+        self.touch_session(&context)?;
         match name {
             "bridge_overview" => self.overview(
                 &project,
@@ -109,7 +115,7 @@ impl Bridge {
                                 name == "release_files"
                                     || !f.as_str().unwrap_or("").trim().is_empty()
                             })
-                            .map(|f| paths::file(&project, f.as_str().unwrap_or("")))
+                            .map(|f| paths::file(&context.worktree, f.as_str().unwrap_or("")))
                             .collect::<Vec<_>>()
                     })
                     .unwrap_or_default();
@@ -137,7 +143,7 @@ impl Bridge {
         purge(&transaction)?;
         let statuses = query(
             &transaction,
-            "SELECT * FROM status WHERE project = ? ORDER BY agent",
+            "SELECT s.*, COALESCE(w.branch, '-') AS branch, COALESCE(w.worktree,s.project) AS worktree, COALESCE(w.last_active,s.updated_at) AS last_active FROM status s LEFT JOIN sessions w ON w.id=s.session_id AND w.project=s.project WHERE s.project = ? ORDER BY s.agent,s.session_no",
             [project],
         )?;
         let claims = query(
@@ -150,7 +156,12 @@ impl Bridge {
             messages::mark_read(&transaction, &unread, agent)?;
         }
         transaction.commit()?;
-        let statuses = format::section(&statuses, "  （还没有人汇报状态）", format::status);
+        let statuses = format::statuses(&statuses)?;
+        let identity = if agent == "human" {
+            agent.to_owned()
+        } else {
+            self.identity(project)?
+        };
         let claims = format::section(&claims, "  （没有文件被认领）", format::claim);
         let messages = format::section(&unread, "  （没有未读消息）", format::message);
         let tip = if mark_read && !unread.is_empty() {
@@ -158,6 +169,6 @@ impl Bridge {
         } else {
             ""
         };
-        Ok(format!("项目：{project}\n你的身份：{agent}\n\n== 各方状态 ==\n{statuses}\n\n== 文件认领 ==\n{claims}\n\n== 给你的未读消息（{} 条）==\n{messages}{tip}", unread.len()))
+        Ok(format!("项目：{project}\n你的身份：{identity}\n\n== 各方状态 ==\n{statuses}\n\n== 文件认领 ==\n{claims}\n\n== 给你的未读消息（{} 条）==\n{messages}{tip}", unread.len()))
     }
 }

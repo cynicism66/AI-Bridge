@@ -39,15 +39,26 @@ impl Bridge {
                 "SELECT * FROM claims WHERE project = ? AND path = ?",
                 params![project, path],
             )?;
-            if let Some(row) = rows.into_iter().find(|r| text(r, "agent") != self.agent) {
+            if let Some(row) = rows.into_iter().find(|r| {
+                text(r, "agent") != self.agent || text(r, "session_id") != self.session_id
+            }) {
                 conflicts.push(row);
             }
         }
         if conflicts.is_empty() {
             for path in files {
                 transaction.execute(
-                    "INSERT OR REPLACE INTO claims VALUES (?, ?, ?, ?, ?, ?)",
-                    params![project, path, self.agent, note, time, expires],
+                    "INSERT OR REPLACE INTO claims VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    params![
+                        project,
+                        path,
+                        self.agent,
+                        note,
+                        time,
+                        expires,
+                        self.session_no(project)?,
+                        self.session_id
+                    ],
                 )?;
             }
         }
@@ -73,14 +84,14 @@ impl Bridge {
         let mut count = 0;
         if files.is_empty() {
             count = transaction.execute(
-                "DELETE FROM claims WHERE project = ? AND agent = ?",
-                params![project, self.agent],
+                "DELETE FROM claims WHERE project = ? AND agent = ? AND session_id = ?",
+                params![project, self.agent, self.session_id],
             )?;
         } else {
             for path in files {
                 count += transaction.execute(
-                    "DELETE FROM claims WHERE project = ? AND path = ? AND agent = ?",
-                    params![project, path, self.agent],
+                    "DELETE FROM claims WHERE project = ? AND path = ? AND agent = ? AND session_id = ?",
+                    params![project, path, self.agent, self.session_id],
                 )?;
             }
         }

@@ -44,6 +44,10 @@ impl Bridge {
                 label(enabled && state.global_enabled),
                 row["last"].as_str().unwrap_or("-")
             ));
+            let agents = self.agents_text(text(&row, "project"))?;
+            if agents != "  （还没有 AI）" {
+                lines.push(agents);
+            }
         }
         if lines.len() == 1 {
             lines.push("  （还没有项目）".into());
@@ -86,9 +90,10 @@ impl Bridge {
     pub fn show_text(&self, project: &str) -> Result<String> {
         let state = self.switch_state(Some(project))?;
         let overview = self.overview(project, "human", false)?;
+        let agents = self.agents_text(project)?;
         let messages = format::section(&self.recent(project)?, "  （无）", format::message);
         Ok(format!(
-            "{}启用状态：{}\n{overview}\n\n== 最近消息 ==\n{messages}",
+            "{}启用状态：{}\n== AI 开关 ==\n{agents}\n{overview}\n\n== 最近消息 ==\n{messages}",
             notice(state, true),
             label(state.enabled())
         ))

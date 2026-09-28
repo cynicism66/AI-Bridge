@@ -76,6 +76,15 @@ fn format_event(row: &Value) -> Result<String> {
         }
         "release" => format!("释放认领：{}", text(&data, "path")),
         "expire" => format!("的认领已到期：{}", text(&data, "path")),
+        "agent_switch" => format!(
+            "对 {} {} Bridge",
+            text(&data, "agent"),
+            if data["enabled"].as_i64().unwrap_or(0) != 0 {
+                "开启"
+            } else {
+                "关闭"
+            }
+        ),
         "switch" => format!(
             "{}{}",
             if data["enabled"].as_i64().unwrap_or(0) != 0 {

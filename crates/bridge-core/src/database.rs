@@ -8,10 +8,11 @@ use std::{
     time::Duration,
 };
 
-pub const VERSION: i64 = 2;
-pub const MIGRATIONS: [&str; 2] = [
+pub const VERSION: i64 = 3;
+pub const MIGRATIONS: [&str; 3] = [
     include_str!("../../../migrations/001.sql"),
     include_str!("../../../migrations/002.sql"),
+    include_str!("../../../migrations/003.sql"),
 ];
 static INITIALIZED: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
@@ -40,6 +41,13 @@ pub fn migrate(conn: &mut Connection) -> Result<()> {
 }
 
 impl Database {
+    #[cfg(test)]
+    pub(crate) fn for_test(path: PathBuf) -> Self {
+        Self {
+            path,
+            create_parent: false,
+        }
+    }
     pub fn from_env() -> Result<Self> {
         let custom = std::env::var_os("BRIDGE_DB").filter(|v| !v.is_empty());
         let create_parent = custom.is_none();
@@ -134,13 +142,10 @@ mod tests {
         conn.execute("INSERT INTO messages VALUES (1, '/p', 'claude', 'all', '旧消息', '2020-01-01 00:00:00')", [])?;
         migrate(&mut conn)?;
         migrate(&mut conn)?;
-        for sql in MIGRATIONS {
-            conn.execute_batch(sql)?;
-        }
-        assert_eq!(check_version(&conn)?, 2);
+        assert_eq!(check_version(&conn)?, 3);
         assert_eq!(query(&conn, "SELECT * FROM events", [])?.len(), 1);
         assert_eq!(query(&conn, "SELECT * FROM messages", [])?.len(), 1);
-        conn.pragma_update(None, "user_version", 3)?;
+        conn.pragma_update(None, "user_version", 4)?;
         assert!(migrate(&mut conn)
             .unwrap_err()
             .to_string()

@@ -76,15 +76,48 @@ AI 传进来的 `project`，以及命令行里的项目参数，都要先换算�
 - 不修改全局配置，不改 `legacy/`。
 
 ## 验收标准
-- [ ] 主目录和 worktree 共用一块公告板，契约测试覆盖
-- [ ] 同一个 AI 的多个会话按 `#编号` 分开显示，状态不互相覆盖；同一个 agent 的不同会话认领同一个文件会冲突
-- [ ] 三级开关正确；AI 一级关闭时返回规定文字、不写入数据；改动马上生效
-- [ ] 数据库升到版本 3，旧数据完整，触发器正常；用真实库的副本演练过
-- [ ] `.git` 格式异常时退回按路径识别，不报错
+- [x] 主目录和 worktree 共用一块公告板，契约测试覆盖
+- [x] 同一个 AI 的多个会话按 `#编号` 分开显示，状态不互相覆盖；同一个 agent 的不同会话认领同一个文件会冲突
+- [x] 三级开关正确；AI 一级关闭时返回规定文字、不写入数据；改动马上生效
+- [x] 数据库升到版本 3，旧数据完整，触发器正常；用真实库的副本演练过
+- [x] `.git` 格式异常时退回按路径识别，不报错
 - [ ] `cargo fmt`、`clippy`、`test`、契约测试、`legacy` 测试全部通过；CI 全绿
 - [ ] 部署完成，双方用真实 MCP 调用验证过
-- [ ] README 更新：项目识别规则、会话编号、消息按 agent 投递、`agent` 命令
-- [ ] Rust 单个文件不超过 300 行
+- [x] README 更新：项目识别规则、会话编号、消息按 agent 投递、`agent` 命令
+- [x] Rust 单个文件不超过 300 行
 
 ## 完成报告
-（Codex 完成后填写：做了什么、偏离任务书的地方及原因、遗留问题、CI 链接、真实环境验证结果）
+### 2026-09-28：实现与本地验收完成，待 CI 和部署
+
+- 先完成 T05b 收尾提交 `2662cdf`：补齐用户 Test-Path=True、双方实际调用、GetMappedFileNameW 与完整重启的证据，更新 README/PLAN，并收录 Claude 交接的 T06a 任务和设计修订。
+- 新增 `repository.rs`，只读 `.git`/gitdir/commondir/HEAD，解析普通仓库、相对/绝对 gitdir、worktree、子模块、bare 仓库及子目录查找；异常写一行中文 stderr 并退回原路径。不调用 git，也没有增加依赖。
+- 一个 MCP 进程生成一个随机 ID（使用现有 SQLite 的 randomblob，在内存数据库生成，不触碰业务库）；`sessions` 按 ID+项目存储，编号在立即事务中取当前活跃会话未使用的最小正整数，避免并发争用。每次有效项目工具调用刷新时间和分支；无 project 参数的 list_projects 刷新本进程已登记且仍启用的项目。
+- 状态按 `(project,agent,session_no)` 保存，认领附带编号；额外保存内部 session_id 校验所有权，防止两小时过期后复用编号的新进程误释放旧认领。超 24 小时的状态合并显示；消息与已读仍按 agent 共享。绝对认领路径相对于当前 worktree 根目录归一化。
+- 三级开关判断集中到 `access_state`，按全局/项目/AI 顺序拒绝。AI 关闭时只读开关，不更新业务表或会话；无项目参数的 list_projects 不显示对当前 AI 关闭的项目。新增人用 `agent [项目] <agent> on|off`，status/show 枚举会话、状态、开关里的已知 AI；agent_switch 由触发器记录，重复设置同值不产生伪变更事件。
+- 迁移 `003.sql` 重建 status 并恢复触发器，保留原列值和已有 events；claims 增加编号与内部 ID；新增 sessions/agent_settings。旧状态和认领均为 #1，建立 PID=0 的迁移来源会话，避免新进程冒领旧认领；后续按两小时活跃期限复用编号。旧 worktree 路径的数据未合并。冻结 Python 不修改，版本 3 后其拒绝写入属于预期行为。
+- README 已说明项目识别、窗口编号、共享已读、agent 命令和升级顺序；工具名称/参数保持不变。Rust 最长文件 174 行，所有文件均小于 300 行。
+
+### 本地测试
+
+`cargo fmt --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`（9 项）、release 编译、22 项 Rust 契约测试、61 项 legacy 测试全部通过。契约覆盖四进程并发编号、同 AI 多会话状态/认领隔离、编号复用、消息共享已读、worktree/分支、坏 Git 数据回退、三级开关与关闭时全表快照不变，以及版本 2 数据和触发器迁移。首次新增测试暴露 Python sqlite3 上下文不会关闭连接，已改为 contextlib.closing，严格模式和 Windows 清理均通过。
+
+### 真实数据库副本演练（原库只读）
+
+用 SQLite 只读连接和 backup API 将 `C:\Users\wangq\.bridge\bridge.db` 备份到临时目录；对副本设置 BRIDGE_DB，再运行新版 status 触发迁移。所有原始列逐行比对一致，integrity_check=ok。演练前后原库 user_version 都是 2，副本变为 3；临时副本验证完毕后清理，未上传真实协作内容。
+
+| 表 | 升级前 | 升级后 |
+|---|---:|---:|
+| status | 2 | 2 |
+| messages | 49 | 49 |
+| reads | 46 | 46 |
+| claims | 9 | 9 |
+| settings | 1 | 1 |
+| events | 138 | 138 |
+| sessions（新增） | — | 2 |
+| agent_settings（新增） | — | 0 |
+
+### 偏离与剩余事项
+
+内部 session_id 和 PID=0 的迁移来源会话是为编号复用时的归属安全补充的存储细节，未改变工具参数或消息投递规则。未实施 T06b，未修改全局配置或 legacy，未升级真实数据库。
+
+CI 待本次实现提交后运行。全部 CI 通过后才按任务书请求用户退出两端、安装新版、完整重启，再由双方实际 MCP 调用和 GetMappedFileNameW 验证；部署验收当前仍未勾选。

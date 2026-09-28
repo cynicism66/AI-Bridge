@@ -73,7 +73,7 @@ Codex 的字段说明见 [官方 MCP 文档](https://learn.chatgpt.com/docs/exte
 
 ## 开关与人用命令
 
-全局总开关默认开启，**每个项目默认关闭**；开关由用户控制，AI 工具不能改变开关。
+全局总开关默认开启，**每个项目默认关闭**，项目里的 AI 开关默认开启。三级开关按“全局 → 项目 → AI”判断，只有全部开启才允许该 AI 使用；开关由用户控制，AI 工具不能改变开关。
 
 ```powershell
 $bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
@@ -88,6 +88,7 @@ $bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
 |---|---|
 | `bridge-mcp on [项目]` / `off [项目]` | 开启／关闭项目 |
 | `bridge-mcp on --global` / `off --global` | 开启／关闭全局总开关 |
+| `bridge-mcp agent [项目] <agent> on\|off` | 设置项目内某个 AI 的开关；省略项目时使用当前目录 |
 | `bridge-mcp status` | 全局和各项目开关、有效状态、最近活动 |
 | `bridge-mcp show [项目]` | 状态、认领、未读消息和最近 20 条消息；不标记已读 |
 | `bridge-mcp post [项目] "内容" [--to all\|claude\|codex]` | 以 human 身份发消息 |
@@ -98,12 +99,25 @@ $bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
 Windows 接受 `D:\code\example`、`D:/code/example`、UNC 路径，以及转换为 `d:/code/example` 的 `/d/code/example`。
 `\example`、`/example`、`/abc/example` 等缺少盘符的路径会报错。
 
-全局和项目同时开启时 AI 才能使用项目协作工具，修改开关后下一次调用立即生效。
+三级开关判断集中在核心的 `access_state`；修改开关后下一次调用立即生效。AI 关闭时工具只读取开关，不创建或更新会话、状态、消息、认领或已读记录。`list_projects` 不展示对当前 AI 关闭的项目；人用 `status`、`show` 仍展示全部项目及已知 AI 的开关和有效状态。
 关闭时人用命令仍能操作；AI 收到“未开启／已关闭”提示后，应停止在本次会话调用 Bridge。
 Rust 不提供 `watch`，后续由桌面软件显示持续变化。
 
-`history` 的类型包括 `status`、`message`、`claim`、`release`、`expire`、`switch`。
+`history` 的类型包括 `status`、`message`、`claim`、`release`、`expire`、`switch`、`agent_switch`。
+AI 开关事件显示为 `[时间] human 对 codex 关闭 Bridge` 或 `开启 Bridge`，由数据库触发器写入。
 项目历史也包含全局开关事件；支持身份与类型组合筛选，目前不自动清理历史。
+
+## 项目识别与窗口会话
+
+传入路径会向上查找 `.git`。Bridge 直接读取 `.git` 目录或文件里的 `gitdir:`，并读取 `commondir` 找到公共 Git 目录，不调用 git 命令。公共目录名为 `.git` 时用它的上级目录作为项目键，否则用公共目录本身；bare 仓库也按其公共目录识别。主目录和 worktree 因此共用公告板，子模块按自己的 Git 目录识别。
+
+没有 Git 信息时仍按原路径识别；`.git` 格式损坏或指向不存在的目录时，也回退原路径，并只在 stderr 写一行诊断。旧的 worktree 路径历史数据不自动合并。文件认领中的绝对路径相对于当前 worktree 根目录处理，以便两棵工作树的同一相对文件互相识别。
+
+一个 MCP 服务器进程对应一个随机会话 ID。在每个项目里首次调用时，按 AI 分配未被两小时内活跃会话占用的最小正整数，显示为 `codex #1`、`codex #2`；同一进程进入不同项目时分别编号。编号过期后可以复用，内部仍用随机 ID 校验认领归属，避免新进程释放旧进程的文件。
+
+公告板的身份行和状态显示分支及 worktree 根目录。正常分支显示名称，游离 HEAD 显示前七位；超过 24 小时未活动的状态折叠为“较早的会话”。状态按项目、AI 和会话编号分别保存；不同窗口认领同一文件会冲突，释放只作用于自己的会话。
+
+**消息始终按 agent 投递，已读记录也按 agent 共享。** 给 codex 的消息可由任意 codex 窗口读取；一个窗口读过后，另一个窗口不会重复收到未读提示。人用 CLI 不创建 MCP 会话。
 
 ## 七个 AI 工具
 
@@ -128,7 +142,8 @@ Rust 不提供 `watch`，后续由桌面软件显示持续变化。
 - `BRIDGE_FAKE_NOW` **只用于测试**，格式 `YYYY-MM-DD HH:MM:SS`，控制业务时间和认领清理比较。
   触发器中的开关／删除认领事件按迁移 SQL 使用 SQLite 的真实本地时间。
 
-当前数据库版本为 2；迁移在事务中完成，旧消息与当前状态会回填到历史表。
+当前数据库版本为 3；迁移在事务中完成，旧消息与当前状态会回填到历史表。
+版本 3 保留原消息、已读、开关和历史；旧状态/认领迁为会话 #1，并建立迁移来源会话（PID 0），避免新窗口冒领仍有效的旧认领。旧版 Rust 和冻结版 Python 会拒绝写入版本 3 数据库，因此部署时需先退出两端、安装新版后再完整启动两端。
 每个进程对同一数据库路径只初始化一次，首次并发启动有锁等待及有限重试；更高版本的数据库拒绝写入。
 测试使用独立临时 `BRIDGE_DB`，不读写用户真实数据库。
 
@@ -178,7 +193,7 @@ Copy-Item -LiteralPath "$env:USERPROFILE\.codex\config.toml.bak-t05" -Destinatio
 ```
 
 然后重启 Claude app 和 Codex app。恢复配置会回到备份时的完整设置；迁移 SQL 保留在根目录 `migrations/`。
-当前回滚适用于数据库版本 2；后续数据库升级后，应先检查旧实现是否仍然兼容。
+此历史回滚只适用于数据库版本 2。T06a 升级到版本 3 后，冻结版会拒绝写入，不能只恢复旧配置继续使用。
 
 ## 代码结构
 

@@ -87,7 +87,7 @@ pub fn project_on(path: &str, windows: bool) -> Result<String> {
 }
 
 pub fn project(path: &str) -> Result<String> {
-    project_on(path, cfg!(windows))
+    Ok(crate::repository::resolve(path)?.key)
 }
 
 pub fn cli_project(path: &str) -> Result<String> {

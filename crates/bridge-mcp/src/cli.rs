@@ -38,6 +38,11 @@ enum Command {
     Off(Switch),
     /// 显示全局开关及所有项目状态
     Status,
+    /// 设置项目内指定 AI 的开关
+    Agent {
+        #[arg(num_args = 2..=3, value_names = ["项目或AI", "AI或开关", "开关"])]
+        values: Vec<String>,
+    },
     /// 查看公告板
     Show(Project),
     /// 读取给 human 的未读消息
@@ -58,7 +63,7 @@ enum Command {
         limit: i64,
         #[arg(long)]
         agent: Option<String>,
-        #[arg(long, value_parser = ["status", "message", "claim", "release", "expire", "switch"])]
+        #[arg(long, value_parser = ["status", "message", "claim", "release", "expire", "switch", "agent_switch"])]
         kind: Option<String>,
     },
 }
@@ -85,6 +90,19 @@ pub fn run(bridge: &Bridge) -> Result<Option<String>> {
                 project.as_deref(),
                 exists,
             )?
+        }
+        Command::Agent { values } => {
+            let (project, agent, state) = if values.len() == 2 {
+                (".", &values[0], &values[1])
+            } else {
+                (values[0].as_str(), &values[1], &values[2])
+            };
+            let enabled = match state.as_str() {
+                "on" => true,
+                "off" => false,
+                _ => bail!("AI 开关必须是 on 或 off"),
+            };
+            bridge.agent_toggle_text(&paths::cli_project(project)?, agent, enabled)?
         }
         Command::Status => bridge.status_text()?,
         Command::Show(args) => bridge.show_text(&args.resolve()?)?,

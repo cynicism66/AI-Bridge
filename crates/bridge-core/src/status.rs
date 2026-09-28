@@ -7,19 +7,25 @@ use serde_json::Value;
 pub struct SwitchState {
     pub global_enabled: bool,
     pub project_enabled: bool,
+    pub agent_enabled: bool,
 }
 
 impl SwitchState {
     pub fn enabled(self) -> bool {
-        self.global_enabled && self.project_enabled
+        self.global_enabled && self.project_enabled && self.agent_enabled
     }
 }
 
 impl Bridge {
     pub fn switch_state(&self, project: Option<&str>) -> Result<SwitchState> {
+        self.access_state(project, None)
+    }
+
+    pub fn access_state(&self, project: Option<&str>, agent: Option<&str>) -> Result<SwitchState> {
         let mut state = SwitchState {
             global_enabled: true,
             project_enabled: false,
+            agent_enabled: true,
         };
         if self.database.path.is_file() {
             let conn = self.database.read_only()?;
@@ -45,6 +51,28 @@ impl Bridge {
                 }
             }
         }
+        if let (Some(project), Some(agent)) = (project, agent) {
+            if self.database.path.is_file() {
+                let conn = self.database.read_only()?;
+                if !query(
+                    &conn,
+                    "SELECT 1 FROM sqlite_master WHERE name='agent_settings'",
+                    [],
+                )?
+                .is_empty()
+                {
+                    if let Some(row) = query(
+                        &conn,
+                        "SELECT enabled FROM agent_settings WHERE project=? AND agent=?",
+                        params![project, agent],
+                    )?
+                    .first()
+                    {
+                        state.agent_enabled = row["enabled"].as_i64() != Some(0);
+                    }
+                }
+            }
+        }
         Ok(state)
     }
 
@@ -57,6 +85,10 @@ impl Bridge {
     }
 
     pub fn projects(&self) -> Result<Vec<Value>> {
+        self.projects_for(None)
+    }
+
+    pub(crate) fn projects_for(&self, agent: Option<&str>) -> Result<Vec<Value>> {
         let conn = self.database.open()?;
         let mut rows = query(
             &conn,
@@ -64,9 +96,11 @@ impl Bridge {
             SELECT project, updated_at AS t FROM status
             UNION ALL SELECT project, created_at FROM messages
             UNION ALL SELECT project, claimed_at FROM claims
-            UNION ALL SELECT scope, NULL FROM settings WHERE scope != 'global')
+            UNION ALL SELECT scope, NULL FROM settings WHERE scope != 'global'
+            UNION ALL SELECT project, NULL FROM agent_settings) AS candidates
+            WHERE NOT EXISTS (SELECT 1 FROM agent_settings a WHERE a.project=candidates.project AND a.agent=? AND a.enabled=0)
             GROUP BY project ORDER BY last DESC",
-            [],
+            [agent],
         )?;
         let settings = query(&conn, "SELECT scope, enabled FROM settings", [])?;
         for row in &mut rows {
@@ -83,7 +117,7 @@ impl Bridge {
         let mut conn = self.database.open()?;
         let transaction = conn.transaction()?;
         transaction.execute(
-            "INSERT OR REPLACE INTO status VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO status VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
                 project,
                 self.agent,
@@ -91,7 +125,9 @@ impl Bridge {
                 text(args, "progress"),
                 text(args, "blockers"),
                 text(args, "next_step"),
-                now()?
+                now()?,
+                self.session_no(project)?,
+                self.session_id
             ],
         )?;
         let count = crate::messages::unread(&transaction, project, &self.agent)?.len();

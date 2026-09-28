@@ -1,4 +1,5 @@
-//! Bridge 的存储、工具和中文格式化；不向 stdin/stdout/stderr 输出。
+//! Bridge 的存储、工具和中文格式化；仅 Git 路径诊断写入 stderr，不使用 stdin/stdout。
+mod agent_switch;
 mod claims;
 pub mod database;
 mod format;
@@ -7,6 +8,8 @@ pub mod human;
 mod messages;
 pub mod paths;
 pub mod protocol;
+pub mod repository;
+mod sessions;
 mod status;
 mod tools;
 
@@ -28,6 +31,7 @@ pub fn now() -> Result<String> {
 pub struct Bridge {
     pub database: Database,
     pub agent: String,
+    pub session_id: String,
 }
 
 impl Bridge {
@@ -38,6 +42,7 @@ impl Bridge {
             .to_lowercase();
         Ok(Self {
             database: Database::from_env()?,
+            session_id: sessions::random_id()?,
             agent: if agent.is_empty() {
                 "unknown".into()
             } else {
@@ -46,3 +51,8 @@ impl Bridge {
         })
     }
 }
+
+#[cfg(test)]
+mod switch_tests;
+#[cfg(test)]
+mod test_support;

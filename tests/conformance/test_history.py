@@ -88,9 +88,10 @@ class HistoryTests(ContractCase):
                 self.assertEqual(normalized(self.cli("history", self.project)), text)
                 connection = sqlite3.connect(self.database)
                 try:
-                    self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 2)
+                    self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 3)
                     for table, expected in snapshot.items():
-                        self.assertEqual(connection.execute(f"SELECT * FROM {table}").fetchall(), expected)
+                        actual = connection.execute(f"SELECT * FROM {table}").fetchall()
+                        self.assertEqual([row[:len(expected[0])] for row in actual], expected)
                     self.assertEqual(connection.execute("SELECT count(*) FROM events").fetchone()[0], 3)
                     self.assertEqual(json.loads(connection.execute("SELECT json_object('ok', 1)").fetchone()[0]), {"ok": 1})
                 finally:
@@ -109,6 +110,6 @@ class HistoryTests(ContractCase):
             connection.execute("PRAGMA user_version=99")
         finally:
             connection.close()
-        error = "数据库版本 99 高于当前支持的版本 2，请升级 Bridge 后再写入。"
+        error = "数据库版本 99 高于当前支持的版本 3，请升级 Bridge 后再写入。"
         self.check(server.call("update_status", project=self.project, task="不能覆盖"), "出错：" + error, True)
         self.assertIn(error, self.cli("on", self.project, ok=False))

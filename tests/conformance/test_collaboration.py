@@ -13,7 +13,7 @@ class CollaborationTests(ContractCase):
         self.check(codex.call("update_status", project=self.project, task="任务", progress="实现中",
                               blockers="无", next_step="测试"),
                    "状态已更新（codex）。\n提示：你有 2 条未读消息，请用 read_messages 查看。")
-        overview = (f"项目：{self.project}\n你的身份：codex\n\n== 各方状态 ==\n【codex】更新于 <时间>"
+        overview = (f"项目：{self.project}\n你的身份：codex #1 · 分支 - · 文件夹 {self.project}\n\n== 各方状态 ==\n【codex #1】分支 - · 文件夹 {self.project} · 更新于 <时间>"
                     "\n  任务：任务\n  进度：实现中\n  卡点：无\n  下一步：测试"
                     "\n\n== 文件认领 ==\n  （没有文件被认领）\n\n== 给你的未读消息（2 条）=="
                     "\n  #1 [<时间>] claude → codex：定向中文\n  #2 [<时间>] claude → 所有人：广播")
