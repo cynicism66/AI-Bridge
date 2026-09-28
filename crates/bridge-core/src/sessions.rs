@@ -47,9 +47,13 @@ pub(crate) fn touch(
             "UPDATE OR REPLACE status SET session_no=? WHERE project=? AND session_id=?",
             params![n, project.key, id],
         )?;
+        tx.execute(
+            "UPDATE claims SET session_no=? WHERE project=? AND session_id=?",
+            params![n, project.key, id],
+        )?;
         n
     };
-    tx.execute("INSERT INTO sessions VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(id,project) DO UPDATE SET
+    tx.execute("INSERT INTO sessions (id,project,agent,session_no,worktree,branch,pid,started_at,last_active) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(id,project) DO UPDATE SET
                 session_no=excluded.session_no,worktree=excluded.worktree,branch=excluded.branch,last_active=excluded.last_active",
                params![id,project.key,agent,number,project.worktree,project.branch,std::process::id(),time,time])?;
     tx.commit()?;
@@ -67,7 +71,7 @@ impl Bridge {
         )
     }
     pub(crate) fn refresh_sessions(&self) -> Result<()> {
-        let rows = query(&self.database.open()?, "SELECT project, worktree FROM sessions WHERE id=? AND EXISTS (SELECT 1 FROM settings WHERE scope=sessions.project AND enabled!=0) AND NOT EXISTS (SELECT 1 FROM agent_settings a WHERE a.project=sessions.project AND a.agent=sessions.agent AND a.enabled=0)", [&self.session_id])?;
+        let rows = query(&self.database.open()?, "SELECT project, worktree FROM sessions WHERE id=? AND EXISTS (SELECT 1 FROM project_init WHERE project=sessions.project) AND EXISTS (SELECT 1 FROM settings WHERE scope=sessions.project AND enabled!=0) AND NOT EXISTS (SELECT 1 FROM agent_settings a WHERE a.project=sessions.project AND a.agent=sessions.agent AND a.enabled=0)", [&self.session_id])?;
         for row in rows {
             let project = crate::repository::resolve(crate::format::text(&row, "worktree"))?;
             self.touch_session(&project)?;

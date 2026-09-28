@@ -43,6 +43,28 @@ enum Command {
         #[arg(num_args = 2..=3, value_names = ["项目或AI", "AI或开关", "开关"])]
         values: Vec<String>,
     },
+    /// 初始化项目协作（仅用户操作）
+    Init {
+        #[command(flatten)]
+        project: Project,
+        #[arg(long)]
+        template: String,
+        #[arg(long = "role", required = true)]
+        roles: Vec<String>,
+        #[arg(long)]
+        goal: String,
+        #[arg(long)]
+        template_file: Option<std::path::PathBuf>,
+        #[arg(long)]
+        write_rules: bool,
+        #[arg(long)]
+        no_kickoff: bool,
+    },
+    /// 调整职务，目标已占用时交换双方职务（仅用户操作）
+    Role {
+        #[arg(num_args = 2..=3, value_names = ["项目或AI", "AI或职务", "职务"])]
+        values: Vec<String>,
+    },
     /// 查看公告板
     Show(Project),
     /// 读取给 human 的未读消息
@@ -63,7 +85,7 @@ enum Command {
         limit: i64,
         #[arg(long)]
         agent: Option<String>,
-        #[arg(long, value_parser = ["status", "message", "claim", "release", "expire", "switch", "agent_switch"])]
+        #[arg(long, value_parser = ["status", "message", "claim", "release", "expire", "switch", "agent_switch", "init", "role"])]
         kind: Option<String>,
     },
 }
@@ -103,6 +125,33 @@ pub fn run(bridge: &Bridge) -> Result<Option<String>> {
                 _ => bail!("AI 开关必须是 on 或 off"),
             };
             bridge.agent_toggle_text(&paths::cli_project(project)?, agent, enabled)?
+        }
+        Command::Init {
+            project,
+            template,
+            roles,
+            goal,
+            template_file,
+            write_rules,
+            no_kickoff,
+        } => bridge.init_text(
+            &project.resolve()?,
+            bridge_core::initialization::InitOptions {
+                template: &template,
+                template_file: template_file.as_deref(),
+                roles: &roles,
+                goal: &goal,
+                write_rules,
+                no_kickoff,
+            },
+        )?,
+        Command::Role { values } => {
+            let (project, agent, slot) = if values.len() == 2 {
+                (".", &values[0], &values[1])
+            } else {
+                (values[0].as_str(), &values[1], &values[2])
+            };
+            bridge.role_text(&paths::cli_project(project)?, agent, slot)?
         }
         Command::Status => bridge.status_text()?,
         Command::Show(args) => bridge.show_text(&args.resolve()?)?,

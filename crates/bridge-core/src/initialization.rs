@@ -1,0 +1,141 @@
+use crate::{
+    collaboration, now,
+    rules_files::RulesFiles,
+    templates::{self, Assignments},
+    Bridge,
+};
+use anyhow::{bail, Context, Result};
+use rusqlite::{params, TransactionBehavior};
+use std::path::Path;
+
+pub struct InitOptions<'a> {
+    pub template: &'a str,
+    pub template_file: Option<&'a Path>,
+    pub roles: &'a [String],
+    pub goal: &'a str,
+    pub write_rules: bool,
+    pub no_kickoff: bool,
+}
+impl Bridge {
+    pub fn init_text(&self, project: &str, options: InitOptions<'_>) -> Result<String> {
+        let state = self.access_state(Some(project), None)?;
+        if !state.project_enabled {
+            bail!("项目尚未开启，请先执行 on");
+        }
+        if !state.global_enabled {
+            bail!("Bridge 全局关闭，请先执行 on --global");
+        }
+        if options.goal.trim().is_empty() {
+            bail!("项目目标不能为空");
+        }
+        let template = templates::load(options.template, options.template_file)?;
+        let roles = templates::assignments(&template, options.roles)?;
+        let charter = templates::charter(&template, options.goal, &roles);
+        let files = if options.write_rules {
+            Some(RulesFiles::prepare(Path::new(project), &charter)?)
+        } else {
+            None
+        };
+        let mut conn = self.database.open()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let version = collaboration::load(&tx, project)?.map_or(1, |i| i.version + 1);
+        tx.execute("DELETE FROM role_assignments WHERE project=?", [project])?;
+        for (agent, slot) in &roles {
+            tx.execute(
+                "INSERT INTO role_assignments VALUES (?,?,?)",
+                params![project, agent, slot],
+            )?;
+        }
+        let stamp = now()?;
+        tx.execute("INSERT INTO project_init VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(project) DO UPDATE SET template=excluded.template,template_json=excluded.template_json,goal=excluded.goal,charter=excluded.charter,version=excluded.version,initialized_at=excluded.initialized_at,roles_json=excluded.roles_json,write_rules=excluded.write_rules",params![project,template.name,serde_json::to_string(&template)?,options.goal,charter,version,stamp,serde_json::to_string(&roles)?,options.write_rules])?;
+        if !options.no_kickoff {
+            for (agent, slot) in &roles {
+                let r = template
+                    .roles
+                    .iter()
+                    .find(|r| &r.slot == slot)
+                    .context("模板职务缺失")?;
+                let task = if r.kickoff {
+                    &template.first_task.content
+                } else {
+                    &template.first_task_others.content
+                };
+                tx.execute("INSERT INTO messages(project,sender,recipient,content,created_at) VALUES (?,'bridge',?,?,?)",params![project,agent,templates::expand(task,options.goal,&roles),stamp])?;
+            }
+        }
+        if let Some(files) = &files {
+            files.write()?;
+        }
+        if let Err(error) = tx.commit() {
+            if let Some(files) = &files {
+                files.restore()?;
+            }
+            return Err(error.into());
+        }
+        Ok(format!(
+            "协作初始化完成：{}，章程 v{version}（{project}）",
+            template.name
+        ))
+    }
+    pub fn role_text(&self, project: &str, agent: &str, slot: &str) -> Result<String> {
+        let mut conn = self.database.open()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let info = collaboration::load(&tx, project)?.context("项目尚未初始化，请先执行 init")?;
+        let template: templates::Template = serde_json::from_str(&info.template_json)?;
+        if !template.roles.iter().any(|r| r.slot == slot) {
+            bail!("当前模板没有职务位置：{slot}");
+        }
+        let agent = agent.trim().to_lowercase();
+        let mut roles = collaboration::roles(&tx, project)?;
+        let old = roles
+            .get(&agent)
+            .context("该 AI 未参与当前协作，请用 init 重新分配参与者")?
+            .clone();
+        if old == slot {
+            return Ok(format!("{agent} 的职务已是 {slot}，未变更"));
+        }
+        let other = roles
+            .iter()
+            .find(|(_, s)| s.as_str() == slot)
+            .map(|(a, _)| a.clone())
+            .context("目标职务未分配，请重新 init")?;
+        roles.insert(agent.clone(), slot.into());
+        roles.insert(other.clone(), old.clone());
+        for a in [&agent, &other] {
+            tx.execute(
+                "UPDATE role_assignments SET slot=? WHERE project=? AND agent=?",
+                params![roles[a], project, a],
+            )?;
+        }
+        let charter = templates::charter(&template, &info.goal, &roles);
+        let files = if info.write_rules {
+            Some(RulesFiles::prepare(Path::new(project), &charter)?)
+        } else {
+            None
+        };
+        tx.execute(
+            "UPDATE project_init SET charter=?,version=version+1,roles_json=? WHERE project=?",
+            params![charter, serde_json::to_string(&roles)?, project],
+        )?;
+        if let Some(files) = &files {
+            files.write()?;
+        }
+        if let Err(error) = tx.commit() {
+            if let Some(files) = &files {
+                files.restore()?;
+            }
+            return Err(error.into());
+        }
+        Ok(format!(
+            "职务已交换：{agent} → {slot}，{other} → {old}；章程 v{}",
+            info.version + 1
+        ))
+    }
+}
+pub fn role_summary(roles: &Assignments) -> String {
+    roles
+        .iter()
+        .map(|(a, s)| format!("{a}={s}"))
+        .collect::<Vec<_>>()
+        .join("，")
+}

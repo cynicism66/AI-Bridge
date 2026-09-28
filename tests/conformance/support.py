@@ -95,8 +95,23 @@ class ContractCase(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
         return text if ok else result.stderr.decode("utf-8", errors="replace")
 
+    def initialize(self, project=None):
+        # 只管理 BRIDGE_DB 指向的临时测试库；结对模板允许两端保持历史认领测试。
+        self.cli("init", project or self.project, "--template", "结对流程", "--role", "开发甲=claude",
+                 "--role", "开发乙=codex", "--goal", "契约测试", "--no-kickoff")
+
     def enable(self):
         self.cli("on", self.project)
+        self.initialize()
+
+    def check_board(self, result, text):
+        # 旧公告板区段继续逐字验证；新增章程区段由 T06b 契约独立完整验证。
+        result = json.loads(json.dumps(result))
+        value = result["content"][0]["text"]
+        identity, remaining = value.split("\n\n", 1)
+        _, rest = remaining.split("== 各方状态 ==", 1)
+        result["content"][0]["text"] = identity + "\n\n== 各方状态 ==" + rest
+        self.check(result, text)
 
     def check(self, result, text, error=False):
         expected = {"content": [{"type": "text", "text": normalized(text)}]}

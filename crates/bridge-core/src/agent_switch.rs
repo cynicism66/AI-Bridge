@@ -16,7 +16,7 @@ impl Bridge {
 
     pub(crate) fn agents_text(&self, project: &str) -> Result<String> {
         let rows = query(&self.database.open()?,
-            "SELECT agent FROM sessions WHERE project=?1 UNION SELECT agent FROM status WHERE project=?1 UNION SELECT agent FROM agent_settings WHERE project=?1 ORDER BY agent",[project])?;
+            "SELECT agent FROM sessions WHERE project=?1 UNION SELECT agent FROM status WHERE project=?1 UNION SELECT agent FROM agent_settings WHERE project=?1 UNION SELECT agent FROM role_assignments WHERE project=?1 ORDER BY agent",[project])?;
         let mut lines = Vec::new();
         for row in rows {
             let agent = text(&row, "agent");

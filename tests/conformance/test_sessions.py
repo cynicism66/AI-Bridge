@@ -28,6 +28,7 @@ class SessionTests(ContractCase):
         (private / "commondir").write_text("../..\n", encoding="utf-8")
         (wt / ".git").write_text("gitdir: ../main/.git/worktrees/wt\n", encoding="utf-8")
         self.cli("on", str(main / "child"))
+        self.initialize(str(main))
         return main, wt, private
 
     def test_worktrees_share_board_and_sessions_keep_ownership(self):
@@ -72,6 +73,7 @@ class SessionTests(ContractCase):
         other = self.directory / "other"
         other.mkdir()
         self.cli("on", str(other))
+        self.initialize(str(other))
         self.assertIn("你的身份：codex #1 ·", content(servers[0].call("bridge_overview", project=str(other))))
         with closing(sqlite3.connect(self.database)) as db:
             self.assertEqual(db.execute("SELECT count(*) FROM sessions").fetchone()[0], 5)
@@ -103,6 +105,10 @@ class SessionTests(ContractCase):
         self.assertIn(f"项目开关：已开启（{self.project}）", result.stdout.decode("utf-8"))
         self.assertIn("退回原路径", result.stderr.decode("utf-8"))
         self.assertEqual(len(result.stderr.splitlines()), 1)
+        # 通过 CLI 使用无诊断的父路径无法初始化坏 .git；直接捕获预期 stderr。
+        result = subprocess.run([*COMMAND, "init", self.project, "--template", "结对流程", "--role", "开发甲=claude", "--role", "开发乙=codex", "--goal", "test", "--no-kickoff"], env=self.env, capture_output=True, timeout=20)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(result.stderr.splitlines()), 1)
         # MCP 同样退回路径，且 stdout 仍只含 JSON。
         import json
         request = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {
@@ -127,6 +133,7 @@ class SessionTests(ContractCase):
         if buffer.value.lower() == str(main).lower():
             self.skipTest("该卷没有生成 8.3 别名")
         server = self.session()
+        server.call("bridge_overview", project=str(main))  # 先显示一次章程，随后比较两种路径的完整返回
         via_short = content(server.call("bridge_overview", project=buffer.value))
         via_long = content(server.call("bridge_overview", project=str(main)))
         self.assertEqual(via_short, via_long)

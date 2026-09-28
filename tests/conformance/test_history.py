@@ -37,7 +37,7 @@ class HistoryTests(ContractCase):
         self.assertEqual(self.cli("history", self.project), before)
         self.cli("off", "--global")
         self.cli("on", "--global")
-        self.assertEqual(normalized(self.cli("history", self.project, "--agent", "human")),
+        self.assertEqual(normalized(self.cli("history", self.project, "--agent", "human", "--kind", "switch")),
                          "[<时间>] human 开启项目\n[<时间>] human 关闭项目\n"
                          "[<时间>] human 关闭全局总开关\n[<时间>] human 开启全局总开关\n")
         all_lines = self.cli("history", self.project).splitlines()
@@ -88,7 +88,7 @@ class HistoryTests(ContractCase):
                 self.assertEqual(normalized(self.cli("history", self.project)), text)
                 connection = sqlite3.connect(self.database)
                 try:
-                    self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 3)
+                    self.assertEqual(connection.execute("PRAGMA user_version").fetchone()[0], 4)
                     for table, expected in snapshot.items():
                         actual = connection.execute(f"SELECT * FROM {table}").fetchall()
                         self.assertEqual([row[:len(expected[0])] for row in actual], expected)
@@ -96,6 +96,7 @@ class HistoryTests(ContractCase):
                     self.assertEqual(json.loads(connection.execute("SELECT json_object('ok', 1)").fetchone()[0]), {"ok": 1})
                 finally:
                     connection.close()
+                self.initialize()
                 server = self.session()
                 self.check(server.call("read_messages", project=self.project),
                            "未读消息（1 条，已标为已读）：\n  #2 [<时间>] claude → 所有人：旧消息")
@@ -110,6 +111,6 @@ class HistoryTests(ContractCase):
             connection.execute("PRAGMA user_version=99")
         finally:
             connection.close()
-        error = "数据库版本 99 高于当前支持的版本 3，请升级 Bridge 后再写入。"
+        error = "数据库版本 99 高于当前支持的版本 4，请升级 Bridge 后再写入。"
         self.check(server.call("update_status", project=self.project, task="不能覆盖"), "出错：" + error, True)
         self.assertIn(error, self.cli("on", self.project, ok=False))

@@ -22,13 +22,14 @@ class MigrationV3Tests(ContractCase):
                         ("status", "claims", "messages", "reads", "settings", "events")}
         self.cli("status")  # 触发迁移，不创建 MCP 会话或清理历史认领。
         with closing(sqlite3.connect(self.database)) as db:
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 3)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 4)
             for table, before in original.items():
                 after = db.execute(f"SELECT * FROM {table}").fetchall()
                 self.assertEqual([r[:len(before[0])] for r in after], before)
             self.assertEqual(db.execute("SELECT session_no FROM status").fetchall(), [(1,)])
             self.assertEqual(db.execute("SELECT session_no FROM claims").fetchall(), [(1,)])
             self.assertEqual(db.execute("SELECT pid,session_no FROM sessions").fetchall(), [(0, 1)])
+        self.initialize()
         server = self.session()
         board = content(server.call("bridge_overview", project=self.project))
         self.assertIn("你的身份：codex #2", board)

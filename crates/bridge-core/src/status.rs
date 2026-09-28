@@ -8,11 +8,12 @@ pub struct SwitchState {
     pub global_enabled: bool,
     pub project_enabled: bool,
     pub agent_enabled: bool,
+    pub initialized: bool,
 }
 
 impl SwitchState {
     pub fn enabled(self) -> bool {
-        self.global_enabled && self.project_enabled && self.agent_enabled
+        self.global_enabled && self.project_enabled && self.agent_enabled && self.initialized
     }
 }
 
@@ -26,6 +27,7 @@ impl Bridge {
             global_enabled: true,
             project_enabled: false,
             agent_enabled: true,
+            initialized: false,
         };
         if self.database.path.is_file() {
             let conn = self.database.read_only()?;
@@ -70,6 +72,25 @@ impl Bridge {
                     {
                         state.agent_enabled = row["enabled"].as_i64() != Some(0);
                     }
+                }
+            }
+        }
+        if let Some(project) = project {
+            if self.database.path.is_file() {
+                let conn = self.database.read_only()?;
+                if !query(
+                    &conn,
+                    "SELECT 1 FROM sqlite_master WHERE name='project_init'",
+                    [],
+                )?
+                .is_empty()
+                {
+                    state.initialized = !query(
+                        &conn,
+                        "SELECT 1 FROM project_init WHERE project=?",
+                        [project],
+                    )?
+                    .is_empty();
                 }
             }
         }

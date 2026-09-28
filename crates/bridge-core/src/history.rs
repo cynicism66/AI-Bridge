@@ -85,6 +85,20 @@ fn format_event(row: &Value) -> Result<String> {
                 "关闭"
             }
         ),
+        "init" => {
+            let roles: crate::templates::Assignments =
+                serde_json::from_value(data["roles"].clone())?;
+            format!(
+                "初始化协作：{}，{}",
+                text(&data, "template"),
+                crate::initialization::role_summary(&roles)
+            )
+        }
+        "role" => format!(
+            "把 {} 的职务改为 {}",
+            text(&data, "agent"),
+            text(&data, "slot")
+        ),
         "switch" => format!(
             "{}{}",
             if data["enabled"].as_i64().unwrap_or(0) != 0 {

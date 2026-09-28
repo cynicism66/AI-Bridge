@@ -11,6 +11,19 @@ fn every_three_level_switch_combination() -> Result<()> {
     let initial = bridge.access_state(Some("/p"), Some("codex"))?;
     assert!(initial.global_enabled && initial.agent_enabled && !initial.project_enabled);
     assert!(!bridge.database.path.exists());
+    bridge.set_enabled(true, Some("/p"))?;
+    assert!(!bridge.access_state(Some("/p"), Some("codex"))?.initialized);
+    bridge.init_text(
+        "/p",
+        crate::initialization::InitOptions {
+            template: "结对流程",
+            template_file: None,
+            roles: &["开发甲=claude".into(), "开发乙=codex".into()],
+            goal: "测试",
+            write_rules: false,
+            no_kickoff: true,
+        },
+    )?;
     for global in [false, true] {
         for project in [false, true] {
             for agent in [false, true] {

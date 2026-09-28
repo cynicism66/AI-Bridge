@@ -17,8 +17,8 @@ class CollaborationTests(ContractCase):
                     "\n  任务：任务\n  进度：实现中\n  卡点：无\n  下一步：测试"
                     "\n\n== 文件认领 ==\n  （没有文件被认领）\n\n== 给你的未读消息（2 条）=="
                     "\n  #1 [<时间>] claude → codex：定向中文\n  #2 [<时间>] claude → 所有人：广播")
-        self.check(codex.call("bridge_overview", project=self.project, mark_read=False), overview)
-        self.check(codex.call("bridge_overview", project=self.project), overview + "\n  （以上消息已标为已读）")
+        self.check_board(codex.call("bridge_overview", project=self.project, mark_read=False), overview)
+        self.check_board(codex.call("bridge_overview", project=self.project), overview + "\n  （以上消息已标为已读）")
         self.check(codex.call("read_messages", project=self.project), "没有未读消息。")
         self.check(codex.call("read_messages", project=self.project, include_read=True, limit=1),
                    "最近的消息：\n  #2 [<时间>] claude → 所有人：广播")
@@ -78,10 +78,12 @@ class CollaborationTests(ContractCase):
             self.assertIn(message, self.cli("on", invalid, ok=False))
         converted = "/" + self.project[0] + self.project[2:]
         self.assertEqual(self.cli("on", converted), f"项目开关：已开启（{self.project}）\n")
+        self.initialize()
         self.check(server.call("update_status", project=converted, task="bash"), "状态已更新（codex）。")
         double = self.project.replace(":/", "://")
         self.check(server.call("update_status", project=double, task="双斜杠"), "状态已更新（codex）。")
         self.assertEqual(self.cli("on", double), f"项目开关：已开启（{self.project}）\n")
         unc = "\\\\server\\share\\project"
         self.cli("on", unc)
+        self.initialize(unc)
         self.check(server.call("update_status", project=unc, task="UNC"), "状态已更新（codex）。")

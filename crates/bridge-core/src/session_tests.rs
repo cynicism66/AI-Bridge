@@ -10,6 +10,10 @@ fn numbers_reuse_gaps_and_expire_after_two_hours() -> Result<()> {
     };
     let t = "2026-01-01 00:00:00";
     assert_eq!(touch(&mut conn, "one", "codex", &p, t)?, 1);
+    conn.execute(
+        "INSERT INTO claims VALUES ('/p','held','codex','',?,'2030-01-01 00:00:00',1,'one')",
+        [t],
+    )?;
     assert_eq!(touch(&mut conn, "two", "codex", &p, t)?, 2);
     assert_eq!(touch(&mut conn, "three", "codex", &p, t)?, 3);
     conn.execute("DELETE FROM sessions WHERE id='two'", [])?;
@@ -24,6 +28,14 @@ fn numbers_reuse_gaps_and_expire_after_two_hours() -> Result<()> {
     );
     assert_eq!(
         touch(&mut conn, "one", "codex", &p, "2026-01-01 02:00:02")?,
+        2
+    );
+    assert_eq!(
+        conn.query_row(
+            "SELECT session_no FROM claims WHERE session_id='one'",
+            [],
+            |r| r.get::<_, i64>(0)
+        )?,
         2
     );
     assert_eq!(touch(&mut conn, "claude", "claude", &p, t)?, 1);

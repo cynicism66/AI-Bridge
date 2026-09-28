@@ -1,4 +1,9 @@
-//! Bridge 的存储、工具和中文格式化；仅 Git 路径诊断写入 stderr，不使用 stdin/stdout。
+mod collaboration;
+pub mod initialization;
+mod permissions;
+mod rules_files;
+pub mod templates;
+// Bridge 的存储、工具和中文格式化；仅 Git 路径诊断写入 stderr，不使用 stdin/stdout。
 mod agent_switch;
 mod claims;
 pub mod database;
@@ -56,3 +61,6 @@ impl Bridge {
 mod switch_tests;
 #[cfg(test)]
 mod test_support;
+
+#[cfg(test)]
+mod template_tests;

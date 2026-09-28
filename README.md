@@ -73,7 +73,7 @@ Codex 的字段说明见 [官方 MCP 文档](https://learn.chatgpt.com/docs/exte
 
 ## 开关与人用命令
 
-全局总开关默认开启，**每个项目默认关闭**，项目里的 AI 开关默认开启。三级开关按“全局 → 项目 → AI”判断，只有全部开启才允许该 AI 使用；开关由用户控制，AI 工具不能改变开关。
+全局总开关默认开启，**每个项目默认关闭**，项目里的 AI 开关默认开启。三级开关按“全局 → 项目 → AI”判断，全部开启后，还必须完成项目协作初始化才允许该 AI 使用；开关由用户控制，AI 工具不能改变开关。
 
 ```powershell
 $bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
@@ -89,8 +89,8 @@ $bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
 | `bridge-mcp on [项目]` / `off [项目]` | 开启／关闭项目 |
 | `bridge-mcp on --global` / `off --global` | 开启／关闭全局总开关 |
 | `bridge-mcp agent [项目] <agent> on\|off` | 设置项目内某个 AI 的开关；省略项目时使用当前目录 |
-| `bridge-mcp status` | 全局和各项目开关、有效状态、最近活动 |
-| `bridge-mcp show [项目]` | 状态、认领、未读消息和最近 20 条消息；不标记已读 |
+| `bridge-mcp status` | 全局和各项目开关、有效状态、初始化状态、模板、目标、职务及最近活动 |
+| `bridge-mcp show [项目]` | 章程、职务、权限、状态、认领及消息；不标记已读 |
 | `bridge-mcp post [项目] "内容" [--to all\|claude\|codex]` | 以 human 身份发消息 |
 | `bridge-mcp read [项目]` | 读取并标记给 human 的未读消息 |
 | `bridge-mcp history [项目] [--limit N] [--agent 身份] [--kind 类型]` | 按时间正序查看最近 50 条交互历史 |
@@ -99,13 +99,86 @@ $bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
 Windows 接受 `D:\code\example`、`D:/code/example`、UNC 路径，以及转换为 `d:/code/example` 的 `/d/code/example`。
 `\example`、`/example`、`/abc/example` 等缺少盘符的路径会报错。
 
-三级开关判断集中在核心的 `access_state`；修改开关后下一次调用立即生效。AI 关闭时工具只读取开关，不创建或更新会话、状态、消息、认领或已读记录。`list_projects` 不展示对当前 AI 关闭的项目；人用 `status`、`show` 仍展示全部项目及已知 AI 的开关和有效状态。
+三级开关和第四级初始化状态的判断集中在核心的 `access_state`；修改开关后下一次调用立即生效。AI 关闭时工具只读取开关，不创建或更新会话、状态、消息、认领或已读记录。`list_projects` 不展示对当前 AI 关闭的项目；人用 `status`、`show` 仍展示全部项目及已知 AI 的开关和有效状态。
 关闭时人用命令仍能操作；AI 收到“未开启／已关闭”提示后，应停止在本次会话调用 Bridge。
 Rust 不提供 `watch`，后续由桌面软件显示持续变化。
 
-`history` 的类型包括 `status`、`message`、`claim`、`release`、`expire`、`switch`、`agent_switch`。
+`history` 的类型包括 `status`、`message`、`claim`、`release`、`expire`、`switch`、`agent_switch`、`init`、`role`。
 AI 开关事件显示为 `[时间] human 对 codex 关闭 Bridge` 或 `开启 Bridge`，由数据库触发器写入。
 项目历史也包含全局开关事件；支持身份与类型组合筛选，目前不自动清理历史。
+
+## 协作初始化、职务和权限
+
+项目状态为：关闭 → 用户 `on` → 待初始化 → 用户 `init` → 协作中。重新开关已经初始化的项目会保留章程；重新执行 `init` 则递增章程版本。尚未初始化时，除 `list_projects` 外，AI 工具只返回提醒，不写会话、状态、消息或认领。
+
+管理命令 `on`、`off`、`agent`、`init`、`role` 必须由用户执行。下面示例中的 `$bridge` 指向已安装的程序，项目应先开启：
+
+```powershell
+$bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
+& $bridge on D:\code\example
+& $bridge init D:\code\example --template 任务书流程 --role 规划审查=claude --role 执行=codex --goal "实现项目目标"
+& $bridge show D:\code\example
+# 交换 codex 与当前规划审查的职务
+& $bridge role D:\code\example codex 规划审查
+```
+
+- **任务书流程**：规划审查负责 `docs/**`，执行方负责实现、测试、完成报告及统一提交；执行方的路径规则为空，表示项目内可写范围不限制，仍须遵守章程里的禁止事项。
+- **结对流程**：开发甲、开发乙均可写项目文件，完成后相互审查；本轮实现方统一提交。
+- **自定义**：用 `--template 自定义 --template-file .\team.toml` 读取用户 TOML。可从 [task.toml](templates/task.toml) 或 [pair.toml](templates/pair.toml) 复制修改。
+
+`init [项目] --template <名字> --role <位置>=<agent> ... --goal "目标"` 要求每个位置恰好分配一个 AI，且一个 AI 只能担任一个位置。`human`、`bridge`、`all` 是保留名称。`role [项目] <agent> <位置>` 在目标位置已占用时交换双方职务（用户已选定的行为），数据库章程版本加一，权限立即生效；新增参与者应重新 `init`。重复设置同职务不产生伪变更事件。
+
+默认以系统身份 `bridge` 向 kickoff 职务发送 `first_task`，向其他参与者分别发送 `first_task_others`；两个内置模板均分配两个 AI，因此产生两条消息。使用 `--no-kickoff` 可省略派发，适合正在进行中的项目。初始化和职务交换由数据库触发器记录，`history --kind init` / `--kind role` 可查看。
+
+`--write-rules` 把生成的章程写到项目键对应根目录的 `AGENTS.md` 与 `CLAUDE.md` 的下列标记内；不存在则新建，已有区块则替换，区块外的原始字节（包括 BOM、换行）保持不变。标记不完整或重复时拒绝写入。启用此选项后，`role` 也会同步更新两个标记块；重新 `init` 时是否导出由当次 `--write-rules` 决定。普通写入失败会回滚数据库并尝试恢复文件；数据库与文件系统无法构成跨系统的断电原子事务。
+
+```markdown
+<!-- AI Bridge 章程开始（由 bridge 生成，请勿手动修改此区块） -->
+生成的章程
+<!-- AI Bridge 章程结束 -->
+```
+
+公告板在本会话首次查看、重新初始化或职务变化后完整显示章程、自己的权限和各方职务；之后显示 `协作章程 v2（本会话已显示过，未变化）`。缓存按会话、项目保存，人用 `show` 始终展示完整内容，不消耗 AI 的首次显示。
+
+自定义模板使用 UTF-8 TOML，顶层 `name`、`charter` 必须放在 `[[roles]]` 之前；格式如下：
+
+```toml
+name = "我的流程"
+charter = "项目目标：{goal}。{规划} 规划，{实现} 执行。"
+
+[[roles]]
+slot = "规划"
+duties = "拆任务和审查"
+allow = ["读代码", "写文档"]
+deny = ["修改实现代码", "提交和推送"]
+write = ["docs/**"]
+kickoff = true
+
+[[roles]]
+slot = "实现"
+duties = "实现、测试和提交"
+allow = ["实现和测试", "提交和推送"]
+deny = ["修改审查意见"]
+write = ["src/**", "tests/**", "*.md", "Cargo.toml"]
+
+[first_task]
+content = "请根据 {goal} 拟定首个任务，与 human 确认。"
+[first_task_others]
+content = "请等待 {规划} 的首个任务。"
+```
+
+每份模板需要且只能有一个 `kickoff = true` 位置；`first_task.to` 可省略，填写时必须是该位置。`{goal}` 和 `{职务位置}` 只展开一次，目标中的同名文字不会再次替换。所有章程自动附上 [公共规则](templates/common.md)，包括统一提交、留言权限和结论落到仓库文档。
+
+`allow`、`deny` 是供人和 AI 阅读的文字；Bridge 对 `claim_files` 强制检查的是 `write`。支持下列四种规则，不支持其他 glob 语法：
+
+| 规则 | 含义 |
+|---|---|
+| `src/**` | src 目录及其所有后代文件 |
+| `*.rs` | 任意层级的 .rs 文件 |
+| `src/*.rs` | 仅 src 直接包含的 .rs 文件 |
+| `Cargo.toml` | 完整相对路径 |
+
+匹配前进行相对路径规范化，Windows 不区分大小写；空规则允许项目内任意路径。项目外的绝对路径和 `../` 越界路径不允许认领；未分配职务的 AI 不能认领文件，可通过留言联系用户。一个文件越权则整批拒绝。此层只约束 Bridge 认领操作，各 app 的原生权限接入计划在 T09 实现。
 
 ## 项目识别与窗口会话
 
@@ -123,11 +196,11 @@ AI 开关事件显示为 `[时间] human 对 codex 关闭 Bridge` 或 `开启 Br
 
 | 工具 | 用途 |
 |---|---|
-| `bridge_overview` | 查看状态、认领和未读消息 |
+| `bridge_overview` | 查看协作章程、职务权限、状态、认领和未读消息 |
 | `update_status` | 更新任务、进度、卡点和下一步 |
 | `send_message` | 给 claude、codex、human 或 all 留言 |
 | `read_messages` | 读取并标记消息，或查询最近消息 |
-| `claim_files` | 整批认领文件，有冲突时整批拒绝 |
+| `claim_files` | 整批认领文件，越权或冲突时整批拒绝 |
 | `release_files` | 释放自己的认领 |
 | `list_projects` | 查看项目并标注开关状态 |
 
@@ -142,8 +215,8 @@ AI 开关事件显示为 `[时间] human 对 codex 关闭 Bridge` 或 `开启 Br
 - `BRIDGE_FAKE_NOW` **只用于测试**，格式 `YYYY-MM-DD HH:MM:SS`，控制业务时间和认领清理比较。
   触发器中的开关／删除认领事件按迁移 SQL 使用 SQLite 的真实本地时间。
 
-当前数据库版本为 3；迁移在事务中完成，旧消息与当前状态会回填到历史表。
-版本 3 保留原消息、已读、开关和历史；旧状态/认领迁为会话 #1，并建立迁移来源会话（PID 0），避免新窗口冒领仍有效的旧认领。旧版 Rust 和冻结版 Python 会拒绝写入版本 3 数据库，因此部署时需先退出两端、安装新版后再完整启动两端。
+当前数据库版本为 4；迁移在事务中完成，旧消息与当前状态会回填到历史表。
+版本 3 保留原消息、已读、开关和历史；旧状态/认领迁为会话 #1，并建立迁移来源会话（PID 0），避免新窗口冒领仍有效的旧认领。版本 4 保留这些数据，新增初始化信息、职务和会话已显示的章程版本；所有旧项目需要用户初始化一次。旧版程序会拒绝写入新数据库，因此升级时需完全退出两端，在独立终端安装新版并由用户初始化，再重开两端；不使用后台安装助手。
 每个进程对同一数据库路径只初始化一次，首次并发启动有锁等待及有限重试；更高版本的数据库拒绝写入。
 测试使用独立临时 `BRIDGE_DB`，不读写用户真实数据库。
 
@@ -200,6 +273,7 @@ Copy-Item -LiteralPath "$env:USERPROFILE\.codex\config.toml.bak-t05" -Destinatio
 - `crates/bridge-core/`：数据库、路径、开关、工具、中文格式化。
 - `crates/bridge-mcp/`：stdio MCP 与命令行入口。
 - `migrations/`：中立位置的编号 SQL 迁移。
+- `templates/`：编译内置的 TOML 模板和公共章程规则，也可复制为自定义模板。
 - `scripts/`：本地安装及安装集成验证。
 - `tests/conformance/`：Rust 黑盒行为规格。
 

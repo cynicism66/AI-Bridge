@@ -41,9 +41,13 @@ impl Bridge {
                 "  {}：项目开关 {}，有效状态 {}，最近活动 {}",
                 text(&row, "project"),
                 label(enabled),
-                label(enabled && state.global_enabled),
+                label(
+                    self.access_state(Some(text(&row, "project")), None)?
+                        .enabled()
+                ),
                 row["last"].as_str().unwrap_or("-")
             ));
+            lines.push(self.collaboration_text(text(&row, "project"))?);
             let agents = self.agents_text(text(&row, "project"))?;
             if agents != "  （还没有 AI）" {
                 lines.push(agents);
@@ -91,9 +95,10 @@ impl Bridge {
         let state = self.switch_state(Some(project))?;
         let overview = self.overview(project, "human", false)?;
         let agents = self.agents_text(project)?;
+        let collaboration = self.collaboration_text(project)?;
         let messages = format::section(&self.recent(project)?, "  （无）", format::message);
         Ok(format!(
-            "{}启用状态：{}\n== AI 开关 ==\n{agents}\n{overview}\n\n== 最近消息 ==\n{messages}",
+            "{}启用状态：{}\n{collaboration}\n== AI 开关 ==\n{agents}\n{overview}\n\n== 最近消息 ==\n{messages}",
             notice(state, true),
             label(state.enabled())
         ))

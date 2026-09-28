@@ -63,6 +63,6 @@ class ProtocolTests(ContractCase):
         self.check(server.call("read_messages", project=self.project), "没有未读消息。")
         self.check(server.call("read_messages", project=self.project, include_read=True), "还没有任何消息。")
         self.check(server.call("release_files", project=self.project), "已释放 0 个文件。")
-        self.check(server.call("bridge_overview", project=self.project),
+        self.check_board(server.call("bridge_overview", project=self.project),
                    f"项目：{self.project}\n你的身份：codex #1 · 分支 - · 文件夹 {self.project}\n\n== 各方状态 ==\n  （还没有人汇报状态）"
                    "\n\n== 文件认领 ==\n  （没有文件被认领）\n\n== 给你的未读消息（0 条）==\n  （没有未读消息）")
