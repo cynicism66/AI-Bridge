@@ -20,7 +20,7 @@ class ProtocolTests(ContractCase):
         self.assertEqual((GOLDEN / "instructions.txt").read_text(encoding="utf-8"), rules)
         self.assertEqual(json.loads(result.stdout)["result"]["instructions"], rules)
         self.assertEqual([line.split(". ", 1)[0] for line in rules.splitlines()
-                          if line[:1].isdigit()], [str(n) for n in range(1, 7)])
+                          if line[:1].isdigit()], [str(n) for n in range(1, 8)])
         self.assertFalse((self.directory / "RULES.md").exists())
         self.assertFalse(self.database.exists())
 
