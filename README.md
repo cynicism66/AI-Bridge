@@ -4,6 +4,12 @@
 
 Windows 优先，只有一个 Rust 程序 `bridge-mcp.exe`，不需要桌面界面、Node.js 或 Python 运行环境。完整旧版保存在标签 [v0-full](https://github.com/cynicism66/AI-Bridge/tree/v0-full)。
 
+## 怎么用
+
+在同一个项目里，分别打开 Claude 和 Codex 的干活会话，告诉它们各自负责什么。它们通过 MCP 工具查看进度、认领文件和留言；Stop 钩子在一轮结束时检查新消息，让收件方在自己的会话里继续处理。Bridge 负责传递协作消息，具体工作仍由两个 AI 完成。
+
+**已经空闲的 Codex 不会被新消息自动叫醒。** 这时需要你去它的窗口说一句话，让它继续一轮；如果它发完消息后还要等对方回复，可以让它用 `wait` 原地等待，按下文的完整路径、超时和已读流程执行。
+
 ## 安装与开启项目
 
 从源码安装需要 Git、Rust stable 和 MSVC C++ 构建工具。在仓库目录运行：
@@ -26,6 +32,8 @@ $bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
 ## 配置 MCP
 
 已经接入的用户保留原 MCP 配置即可。新用户先在 PowerShell 执行下面的命令，它只打印两段可复制配置，不写文件。使用实际展开的安装路径，是因为 MCP 的 `command` 字段不会自动展开 `%USERPROFILE%`。
+
+Git Bash 里的 `~` 可能不是 Windows 的 `%USERPROFILE%`。本文的用户配置和安装路径统一以 PowerShell 的 `$env:USERPROFILE` 为准，不要用 Git Bash 的 `~` 推算。
 
 ```powershell
 $bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
@@ -113,6 +121,27 @@ Codex：`%USERPROFILE%\.codex\hooks.json`
 
 只回答问题的窗口应遵循 RULES，不主动调用 Bridge 的读消息工具；收件绑定约束的是钩子投递，主动调用读消息工具仍会标记已读。
 
+## 在其他项目里使用
+
+要使用包含 Stop 自动收信的完整流程，项目必须是 Git 仓库。Bridge 程序、上面的 MCP 配置和钩子配置都是全局的，配好一次后无须为每个项目重复安装或复制配置。对已有 Git 仓库，只需由用户开启新项目的开关，再在两端打开该项目的干活会话：
+
+```powershell
+$bridge = Join-Path $env:USERPROFILE '.bridge\bin\bridge-mcp.exe'
+& $bridge on "D:\code\another-project"
+```
+
+每个项目的每个 AI 使用一个干活窗口。另开的提问窗口不调用 Bridge；在干活窗口已绑定且保持活跃时，提问窗口的 Stop 钩子不会抢走消息。首次绑定、两小时失效和认错窗口的情况见上文；需要指定窗口时运行 `rebind`，再到目标窗口说一句话。
+
+暂时不想在这个项目使用 Bridge，可运行 `& $bridge off "D:\code\another-project"`，其他项目的开关不受影响。
+
+**同一仓库的 Git worktree 共用公告板、消息已读状态和每个 AI 的收件窗口。** worktree 可以分开代码目录，但不能隔离多对 AI 的协作消息；当前暂不支持在同一个仓库的多个 worktree 中运行多对互相独立的 Claude/Codex。
+
+## 和审查规则配合
+
+如果项目已有通过 REVIEW/REPLY 文件交接的规则，可以保留文件和原有分工。把“写完文件后由用户触发下一轮”改为：写完文件后，通过 Bridge 的 `send_message` 通知对方，说明文件路径和需要它做什么。审查意见、技术细节和逐条回复仍写在文件里，Bridge 消息只做通知。
+
+对方已经空闲时，仍需按“怎么用”一节由用户唤起，或让对方事先用 `wait` 等待。通知只用于已授权工作的交接，不能代替用户授权。
+
 ## 命令行
 
 下面用 `bridge-mcp` 简写已安装程序。PowerShell 中用前面定义的 `& $bridge` 代替；省略项目时使用当前目录。
@@ -124,10 +153,10 @@ Codex：`%USERPROFILE%\.codex\hooks.json`
 | `status` | 查看开关和项目 |
 | `show [项目] [--include-older]` | 查看公告板，可展开较早会话，不标记已读 |
 | `read [项目]` | 读取并标记给 human 的未读消息 |
-| `post [项目] "内容" [--to all|claude|codex]` | 以 human 身份留言 |
-| `wait [项目] --agent claude|codex --timeout 300` | 等待启动之后的新消息，只读且不标记已读 |
-| `hook --agent claude|codex` | 从 stdin 接收钩子 JSON；通常由客户端执行 |
-| `rebind [项目] --agent claude|codex` | 指定下一次触发钩子的窗口为收件窗口 |
+| `post [项目] "内容" [--to all\|claude\|codex]` | 以 human 身份留言 |
+| `wait [项目] --agent claude\|codex --timeout 300` | 等待启动之后的新消息，只读且不标记已读 |
+| `hook --agent claude\|codex` | 从 stdin 接收钩子 JSON；通常由客户端执行 |
+| `rebind [项目] --agent claude\|codex` | 指定下一次触发钩子的窗口为收件窗口 |
 
 需要 AI 原地等回复时，使用完整安装路径。例如 PowerShell：
 
@@ -136,6 +165,18 @@ Codex：`%USERPROFILE%\.codex\hooks.json`
 ```
 
 Git Bash 使用 `"$USERPROFILE/.bridge/bin/bridge-mcp.exe" wait "D:/code/example" --agent claude --timeout 300`。把命令工具的执行超时设为大于 300 秒，例如 360 秒（360000 毫秒）；也可通过后台进程或会话句柄分段等待。有新消息返回后，先调用 MCP 的 `read_messages` 读取并标记已读，再处理消息，避免 Stop 钩子再次投递。等待超时最多重试至三轮，开关关闭或命令报错时停止等待。
+
+## 常见问题
+
+**Claude 为什么把消息标成 `Stop hook blocking error`？**
+
+Bridge 用 `{"decision":"block","reason":"…"}` 让 Claude 先处理新消息再结束，正常投递时退出码是 0。Claude 会把这种阻止结束的反馈显示为上述标签；单凭这个标签不代表程序出错。这里的 `block` 表示继续当前工作，详见 [Claude Stop 钩子的决策说明](https://code.claude.com/docs/en/hooks#stop-decision-control)。
+
+**消息没有自动送达，先检查什么？**
+
+1. **未开启：** 用 `& $bridge status` 检查项目开关和全局总开关。两者都开启，才会正常投递；开关由用户操作。
+2. **收件窗口不是当前窗口：** 消息可能仍绑定到另一个干活窗口。按“收件窗口和重新指定”一节执行 `rebind`，再在想接收消息的窗口结束一轮。
+3. **会话空闲：** Stop 钩子只在一轮结束时触发，不会持续后台轮询。去收件窗口说一句话，或在后续协作时让 AI 用 `wait` 原地等回复。
 
 ## 开发和验证
 
