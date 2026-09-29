@@ -1,9 +1,29 @@
 import json
+import shutil
+import subprocess
+from pathlib import Path
 
-from .support import ContractCase, GOLDEN, GLOBAL_OFF, PROJECT_OFF
+from .support import COMMAND, ROOT, ContractCase, GOLDEN, GLOBAL_OFF, PROJECT_OFF
 
 
 class ProtocolTests(ContractCase):
+    def test_standalone_initialize_delivers_complete_rules_without_project_files(self):
+        executable = self.directory / Path(COMMAND[0]).name
+        shutil.copy2(COMMAND[0], executable)
+        request = {"jsonrpc": "2.0", "id": 1, "method": "initialize"}
+        result = subprocess.run([str(executable)], cwd=self.directory, env=self.env,
+                                input=(json.dumps(request) + "\n").encode("utf-8"),
+                                capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, b"")
+        rules = (ROOT / "RULES.md").read_text(encoding="utf-8")
+        self.assertEqual((GOLDEN / "instructions.txt").read_text(encoding="utf-8"), rules)
+        self.assertEqual(json.loads(result.stdout)["result"]["instructions"], rules)
+        self.assertEqual([line.split(". ", 1)[0] for line in rules.splitlines()
+                          if line[:1].isdigit()], [str(n) for n in range(1, 7)])
+        self.assertFalse((self.directory / "RULES.md").exists())
+        self.assertFalse(self.database.exists())
+
     def test_protocol_golden_and_persistent_requests(self):
         server = self.session()
         init = server.request("initialize", {"protocolVersion": "test-protocol"})["result"]

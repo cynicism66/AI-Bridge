@@ -1,5 +1,6 @@
 """真实子进程等待：仅使用临时数据库，输出读取有界且在退出前验证刷新。"""
 from contextlib import closing
+import json
 import queue
 import sqlite3
 import subprocess
@@ -83,6 +84,35 @@ class WaitTests(ContractCase):
         self.assertEqual(result.stdout.decode('utf-8').strip(), '等待超时')
         self.assertLess(time.monotonic() - started, 8)
         self.assertEqual(self.snapshot(), before)
+
+    def test_read_after_wait_prevents_stop_redelivery_but_keeps_future_messages(self):
+        (self.directory / '.git').mkdir()
+        self.enable()
+        process, lines = self.start_wait('--timeout', '10')
+        self.wake(lines)
+        self.assertEqual(process.wait(timeout=5), 0)
+        self.assertEqual(self.rows('SELECT count(*) FROM reads'), [(0,)])
+        response = self.session().call('read_messages', project=self.project)
+        self.assertFalse(response.get('isError'), response)
+        self.assertIn('新消息', response['content'][0]['text'])
+        self.assertEqual(self.rows('SELECT count(*) FROM messages'),
+                         self.rows('SELECT count(*) FROM reads'))
+        payload = json.dumps({'cwd': str(self.directory), 'session_id': 'wait-reader',
+                              'stop_hook_active': False}).encode('utf-8')
+
+        def stop():
+            result = subprocess.run([*COMMAND, 'hook', '--agent', 'codex'], input=payload,
+                                    env=self.env, capture_output=True, timeout=15)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stderr, b'')
+            return result.stdout
+
+        self.assertEqual(stop(), b'')
+        self.insert(content='读取后新到达的消息')
+        delivered = json.loads(stop())
+        self.assertEqual(delivered['decision'], 'block')
+        self.assertIn('读取后新到达的消息', delivered['reason'])
+        self.assertNotIn('第二行', delivered['reason'])
 
     def test_follow_multiple_batches_no_duplicates_self_or_wrong_recipient(self):
         self.enable()

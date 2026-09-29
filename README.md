@@ -43,7 +43,7 @@ BRIDGE_AGENT = "codex"
 - 把第一段 JSON 的 `mcpServers.bridge` 合入 `%USERPROFILE%\.claude.json`。
 - 把第二段 TOML 合入 `%USERPROFILE%\.codex\config.toml`。
 - 保留文件里已有的其他配置。两端身份分别是 `claude`、`codex`，两端使用同一个数据库。
-- 把 [RULES.md](RULES.md) 复制到 Claude 的全局 `CLAUDE.md` 和 Codex 的全局 `AGENTS.md`。重启两端后，在干活的窗口调用 `bridge_overview` 验证。
+- MCP 连接时会直接提供 [RULES.md](RULES.md) 中的完整协作规则，无须另行复制到全局 `CLAUDE.md` 或 `AGENTS.md`。更新 exe 后重启两端以加载新规则，在干活的窗口调用 `bridge_overview` 验证。
 
 MCP 一共 7 个工具：`bridge_overview`、`send_message`、`read_messages`、`update_status`、`claim_files`、`release_files`、`list_projects`。所有工具的 `project` 都填项目根目录的绝对路径。
 
@@ -125,9 +125,17 @@ Codex：`%USERPROFILE%\.codex\hooks.json`
 | `show [项目] [--include-older]` | 查看公告板，可展开较早会话，不标记已读 |
 | `read [项目]` | 读取并标记给 human 的未读消息 |
 | `post [项目] "内容" [--to all|claude|codex]` | 以 human 身份留言 |
-| `wait [项目] --agent claude|codex --timeout 600` | 等待启动之后的新消息，只读且不标记已读 |
+| `wait [项目] --agent claude|codex --timeout 300` | 等待启动之后的新消息，只读且不标记已读 |
 | `hook --agent claude|codex` | 从 stdin 接收钩子 JSON；通常由客户端执行 |
 | `rebind [项目] --agent claude|codex` | 指定下一次触发钩子的窗口为收件窗口 |
+
+需要 AI 原地等回复时，使用完整安装路径。例如 PowerShell：
+
+```powershell
+& "$env:USERPROFILE\.bridge\bin\bridge-mcp.exe" wait "D:\code\example" --agent codex --timeout 300
+```
+
+Git Bash 使用 `"$USERPROFILE/.bridge/bin/bridge-mcp.exe" wait "D:/code/example" --agent claude --timeout 300`。把命令工具的执行超时设为大于 300 秒，例如 360 秒（360000 毫秒）；也可通过后台进程或会话句柄分段等待。有新消息返回后，先调用 MCP 的 `read_messages` 读取并标记已读，再处理消息，避免 Stop 钩子再次投递。等待超时最多重试至三轮，开关关闭或命令报错时停止等待。
 
 ## 开发和验证
 

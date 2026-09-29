@@ -1,5 +1,28 @@
 # Bridge 架构
 
+## 精简版（2026-09-29 起，决策 44–52）
+
+只有一个程序 `%USERPROFILE%\.bridge\bin\bridge-mcp.exe`，数据在 `~/.bridge/bridge.db`（SQLite，可用 `BRIDGE_DB` 改路径）。
+
+```
+Claude 会话 ──MCP(stdio)──┐                ┌── Stop 钩子：bridge-mcp hook --agent claude
+                         ├─ bridge-mcp ─ bridge.db
+Codex 会话  ──MCP(stdio)──┘                └── Stop 钩子：bridge-mcp hook --agent codex
+用户终端 ── bridge-mcp on/off/status/show/read/post/wait/rebind
+```
+
+- **项目**：按 git 仓库识别，同一仓库的 worktree 共用一块公告板。
+- **MCP 工具（7 个）**：`bridge_overview`、`send_message`、`read_messages`、`update_status`、`claim_files`、`release_files`、`list_projects`。
+- **Stop 钩子**：每轮结束时读取 stdin 里的 `cwd`、`session_id`、`stop_hook_active`，把未读消息作为 `{"decision":"block","reason":…}` 送回会话，并标记已读。出错时只写 stderr，退出码为 0。
+- **收件窗口**：`hook_receivers` 表（迁移 009）为每个项目、每个 AI 记一个 `session_id`。别的窗口在收件窗口活跃期间（2 小时内）拿不到消息；`rebind` 手动重新指定。
+- **原地等回复**：`wait` 只读轮询，有新消息就返回。
+- 旧版的表（职务、权限、事件等）留在库里，不再使用。完整旧版在 git 标签 `v0-full`。
+- **代码**：`crates/bridge-core`（数据库、工具、钩子）、`crates/bridge-mcp`（程序入口和命令行）、`tests/conformance`（Python 黑盒测试）。
+
+---
+
+**以下是精简前的架构，只作历史参考。**
+
 ## 组成
 
 ```
