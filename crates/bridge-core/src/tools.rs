@@ -7,8 +7,6 @@ use crate::{
 use anyhow::{bail, Result};
 use serde_json::Value;
 
-pub const PENDING_INIT: &str = "此项目的 Bridge 协作尚未初始化（由用户控制）。请提醒用户完成初始化（分配职务和权限），在此之前正常工作，不必再调用 Bridge 工具。";
-
 pub const PROJECT_OFF: &str = "Bridge 未在此项目开启（由用户控制）。请忽略协作规则，正常工作；本次会话不必再调用 Bridge 工具。";
 pub const GLOBAL_OFF: &str =
     "Bridge 已被用户全局关闭。请忽略协作规则，正常工作；本次会话不必再调用 Bridge 工具。";
@@ -38,7 +36,7 @@ impl Bridge {
             if !self.switch_state(None)?.global_enabled {
                 return Ok(GLOBAL_OFF.into());
             }
-            let rows = self.projects_for(Some(&self.agent))?;
+            let rows = self.projects()?;
             self.refresh_sessions()?;
             if rows.is_empty() {
                 return Ok("还没有项目使用过 Bridge。".into());
@@ -69,18 +67,12 @@ impl Bridge {
         }
         let context = repository::resolve(text(args, "project"))?;
         let project = context.key.clone();
-        let state = self.access_state(Some(&project), Some(&self.agent))?;
+        let state = self.switch_state(Some(&project))?;
         if !state.global_enabled {
             return Ok(GLOBAL_OFF.into());
         }
         if !state.project_enabled {
             return Ok(PROJECT_OFF.into());
-        }
-        if !state.agent_enabled {
-            return Ok(format!("Bridge 在此项目中未对你（{}）开启（由用户控制）。请忽略协作规则，正常工作；本次会话不必再调用 Bridge 工具。", self.agent));
-        }
-        if !state.initialized {
-            return Ok(PENDING_INIT.into());
         }
         self.touch_session(&context)?;
         match name {
@@ -98,13 +90,7 @@ impl Bridge {
                 }
                 let to = text(args, "to");
                 let to = if to.is_empty() { "all" } else { to }.trim().to_lowercase();
-                let needs_action = match args.get("needs_action") {
-                    None => false,
-                    Some(value) => value
-                        .as_bool()
-                        .ok_or_else(|| anyhow::anyhow!("needs_action 必须是布尔值"))?,
-                };
-                let id = self.send_action(&project, &to, content, needs_action)?;
+                let id = self.send(&project, &self.agent, &to, content)?;
                 Ok(format!("消息 #{id} 已发送给 {}。", format::recipient(&to)))
             }
             "read_messages" => {
@@ -136,9 +122,6 @@ impl Bridge {
                 }
                 if files.is_empty() {
                     bail!("files 不能为空");
-                }
-                if let Some(denial) = self.claim_permission(&project, &files)? {
-                    return Ok(denial);
                 }
                 self.claim(
                     &project,
@@ -198,12 +181,11 @@ impl Bridge {
         } else {
             ""
         };
-        let charter = self.charter_overview(project, agent)?;
         let project = if agent == "human" {
             crate::display_path(project)
         } else {
             project.into()
         };
-        Ok(format!("项目：{project}\n你的身份：{identity}\n\n{charter}\n== 各方状态 ==\n{statuses}\n\n== 文件认领 ==\n{claims}\n\n== 给你的未读消息（{} 条）==\n{messages}{tip}", unread.len()))
+        Ok(format!("项目：{project}\n你的身份：{identity}\n\n== 各方状态 ==\n{statuses}\n\n== 文件认领 ==\n{claims}\n\n== 给你的未读消息（{} 条）==\n{messages}{tip}", unread.len()))
     }
 }

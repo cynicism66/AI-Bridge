@@ -1,12 +1,20 @@
 //! 等待新消息的只读游标，不迁移数据库、不标已读，也不创建会话。
 use crate::{
     database::{check_version, query},
-    desktop::Message,
     Bridge,
 };
 use anyhow::{bail, Result};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection};
 
+#[derive(serde::Deserialize)]
+pub struct Message {
+    pub id: i64,
+    pub sender: String,
+    pub recipient: String,
+    pub content: String,
+    #[serde(default)]
+    pub via: String,
+}
 pub enum Poll {
     Messages(Vec<Message>),
     Disabled(&'static str),
@@ -18,17 +26,14 @@ pub struct Reader {
     cursor: i64,
 }
 
-pub fn disabled(bridge: &Bridge, project: &str, agent: &str) -> Result<Option<&'static str>> {
-    let s = bridge.access_state(Some(project), Some(agent))?;
-    Ok(reason(s.global_enabled, s.project_enabled, s.agent_enabled))
+pub fn disabled(bridge: &Bridge, project: &str, _agent: &str) -> Result<Option<&'static str>> {
+    Ok(reason(bridge.switch_state(Some(project))?))
 }
-fn reason(global: bool, project: bool, agent: bool) -> Option<&'static str> {
-    if !global {
+fn reason(state: crate::status::SwitchState) -> Option<&'static str> {
+    if !state.global_enabled {
         Some("Bridge 全局已关闭，已停止等待。")
-    } else if !project {
+    } else if !state.project_enabled {
         Some("Bridge 未在此项目开启，已停止等待。")
-    } else if !agent {
-        Some("此 AI 在该项目的协作已关闭，已停止等待。")
     } else {
         None
     }
@@ -51,27 +56,7 @@ impl Reader {
     pub fn poll(&mut self) -> Result<Poll> {
         let tx = self.conn.transaction()?;
         check_version(&tx)?;
-        let setting = |scope: &str, default: bool| -> Result<bool> {
-            Ok(tx
-                .query_row("SELECT enabled FROM settings WHERE scope=?", [scope], |r| {
-                    r.get(0)
-                })
-                .optional()?
-                .unwrap_or(default))
-        };
-        let agent = tx
-            .query_row(
-                "SELECT enabled FROM agent_settings WHERE project=? AND agent=?",
-                params![self.project, self.agent],
-                |r| r.get(0),
-            )
-            .optional()?
-            .unwrap_or(true);
-        if let Some(message) = reason(
-            setting("global", true)?,
-            setting(&self.project, false)?,
-            agent,
-        ) {
+        if let Some(message) = reason(crate::status::state_in(&tx, Some(&self.project))?) {
             return Ok(Poll::Disabled(message));
         }
         let rows = query(&tx,"SELECT m.* FROM messages m WHERE m.project=?1 AND m.id>?2 AND m.sender!=?3 AND m.recipient IN ('all',?3)

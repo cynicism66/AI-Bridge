@@ -80,7 +80,7 @@ impl Bridge {
         )
     }
     pub(crate) fn refresh_sessions(&self) -> Result<()> {
-        let rows = query(&self.database.open()?, "SELECT project, worktree FROM sessions WHERE id=? AND EXISTS (SELECT 1 FROM project_init WHERE project=sessions.project) AND EXISTS (SELECT 1 FROM settings WHERE scope=sessions.project AND enabled!=0) AND NOT EXISTS (SELECT 1 FROM agent_settings a WHERE a.project=sessions.project AND a.agent=sessions.agent AND a.enabled=0)", [&self.session_id])?;
+        let rows = query(&self.database.open()?, "SELECT project, worktree FROM sessions WHERE id=? AND EXISTS (SELECT 1 FROM settings WHERE scope=sessions.project AND enabled!=0)", [&self.session_id])?;
         for row in rows {
             let project = crate::repository::resolve(crate::format::text(&row, "worktree"))?;
             self.touch_session(&project)?;

@@ -41,17 +41,9 @@ impl Bridge {
                 "  {}：项目开关 {}，有效状态 {}，最近活动 {}",
                 crate::display_path(text(&row, "project")),
                 label(enabled),
-                label(
-                    self.access_state(Some(text(&row, "project")), None)?
-                        .enabled()
-                ),
+                label(self.switch_state(Some(text(&row, "project")))?.enabled()),
                 row["last"].as_str().unwrap_or("-")
             ));
-            lines.push(self.collaboration_text(text(&row, "project"))?);
-            let agents = self.agents_text(text(&row, "project"))?;
-            if agents != "  （还没有 AI）" {
-                lines.push(agents);
-            }
         }
         if lines.len() == 1 {
             lines.push("  （还没有项目）".into());
@@ -98,11 +90,9 @@ impl Bridge {
     pub fn show_sessions_text(&self, project: &str, include_older: bool) -> Result<String> {
         let state = self.switch_state(Some(project))?;
         let overview = self.overview_with_sessions(project, "human", false, include_older)?;
-        let agents = self.agents_text(project)?;
-        let collaboration = self.collaboration_text(project)?;
         let messages = format::section(&self.recent(project)?, "  （无）", format::message);
         Ok(format!(
-            "{}启用状态：{}\n{collaboration}\n== AI 开关 ==\n{agents}\n{overview}\n\n== 最近消息 ==\n{messages}",
+            "{}启用状态：{}\n{overview}\n\n== 最近消息 ==\n{messages}",
             notice(state, true),
             label(state.enabled())
         ))
@@ -110,7 +100,10 @@ impl Bridge {
 
     pub fn post_text(&self, project: &str, content: &str, to: &str) -> Result<String> {
         let prefix = notice(self.switch_state(Some(project))?, true);
-        let id = self.post_human(project, content, to, crate::desktop::HumanVia::Cli)?;
+        if content.trim().is_empty() {
+            anyhow::bail!("消息内容不能为空");
+        }
+        let id = self.send_via(project, "human", to, content.trim(), "cli")?;
         Ok(format!(
             "{prefix}消息 #{id} 已发送给 {}。",
             format::recipient(to)

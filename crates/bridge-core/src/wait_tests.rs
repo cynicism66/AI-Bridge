@@ -28,8 +28,6 @@ fn cursor_filters_old_read_self_other_recipient_and_other_project_without_writes
     assert_eq!(query(&conn, "SELECT * FROM reads", [])?, before);
     assert!(query(&conn, "SELECT * FROM sessions", [])?.is_empty());
     assert!(reader.conn.execute("DELETE FROM messages", []).is_err());
-    b.set_agent_enabled("/p", "codex", false)?;
-    assert!(matches!(reader.poll()?,Poll::Disabled(s) if s.contains("AI")));
     b.set_enabled(false, Some("/p"))?;
     assert!(matches!(reader.poll()?,Poll::Disabled(s) if s.contains("项目")));
     b.set_enabled(false, None)?;
@@ -41,13 +39,10 @@ fn cursor_filters_old_read_self_other_recipient_and_other_project_without_writes
 fn unicode_output_is_one_line_and_limits_content_not_bytes() {
     let m = Message {
         id: 42,
-        project: "/p".into(),
         sender: "human".into(),
         recipient: "all".into(),
         content: format!("甲\r\n乙\n丙\r丁\u{2028}{}", "🦀".repeat(250)),
-        created_at: String::new(),
         via: "gui".into(),
-        receipts: vec![],
     };
     let line = line(&m);
     let (header, content) = line.split_once('：').unwrap();

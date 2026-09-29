@@ -41,9 +41,9 @@ class CollaborationTests(ContractCase):
                    "认领失败，以下文件已被别人认领（本次一个都没认领）：\n"
                    "  src/a.py ← codex（重构），到期 <时间>\n请先用 send_message 和对方协商，或等对方释放。")
         claude.call("claim_files", project=self.project, files=["held.py"], ttl_minutes=1)
-        before = self.cli("history", self.project, "--kind", "claim", "--agent", "claude")
+        before = self.rows("SELECT * FROM claims WHERE agent='claude'")
         claude.call("claim_files", project=self.project, files=["held.py", "src/a.py"], ttl_minutes=60)
-        self.assertEqual(self.cli("history", self.project, "--kind", "claim", "--agent", "claude"), before)
+        self.assertEqual(self.rows("SELECT * FROM claims WHERE agent='claude'"), before)
         self.check(claude.call("release_files", project=self.project, files=["src/a.py"]), "已释放 0 个文件。")
         self.check(codex.call("claim_files", project=self.project, files=["src/a.py"], ttl_minutes=30),
                    "已认领 1 个文件，到期 <时间>：\n  src/a.py")
@@ -78,12 +78,10 @@ class CollaborationTests(ContractCase):
             self.assertIn(message, self.cli("on", invalid, ok=False))
         converted = "/" + self.project[0] + self.project[2:]
         self.assertEqual(self.cli("on", converted), f"项目开关：已开启（{display_path(self.project)}）\n")
-        self.initialize()
         self.check(server.call("update_status", project=converted, task="bash"), "状态已更新（codex）。")
         double = self.project.replace(":/", "://")
         self.check(server.call("update_status", project=double, task="双斜杠"), "状态已更新（codex）。")
         self.assertEqual(self.cli("on", double), f"项目开关：已开启（{display_path(self.project)}）\n")
         unc = "\\\\server\\share\\project"
         self.cli("on", unc)
-        self.initialize(unc)
         self.check(server.call("update_status", project=unc, task="UNC"), "状态已更新（codex）。")

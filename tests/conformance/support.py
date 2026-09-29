@@ -1,5 +1,7 @@
 """只启动被测程序，不导入任何 bridge_mcp 模块。"""
 
+import sqlite3
+from contextlib import closing
 import json
 import os
 from pathlib import Path
@@ -82,7 +84,7 @@ class ContractCase(unittest.TestCase):
         self.directory = Path(temporary.name).resolve()
         self.database = self.directory / "bridge.db"
         self.project = os.path.normcase(str(self.directory)).replace("\\", "/")
-        self.env = {**os.environ, "BRIDGE_DB": str(self.database), "BRIDGE_AGENT": "codex",
+        self.env = {**os.environ, "USERPROFILE": str(self.directory), "HOME": str(self.directory), "BRIDGE_DB": str(self.database), "BRIDGE_AGENT": "codex",
                     "BRIDGE_FAKE_NOW": STAMP, "PYTHONUTF8": "1"}
 
     def session(self, agent="codex", clock=STAMP, command=COMMAND):
@@ -101,22 +103,14 @@ class ContractCase(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
         return text if ok else result.stderr.decode("utf-8", errors="replace")
 
-    def initialize(self, project=None):
-        # 只管理 BRIDGE_DB 指向的临时测试库；结对模板允许两端保持历史认领测试。
-        self.cli("init", project or self.project, "--template", "结对流程", "--role", "开发甲=claude",
-                 "--role", "开发乙=codex", "--goal", "契约测试", "--no-kickoff")
-
     def enable(self):
         self.cli("on", self.project)
-        self.initialize()
+
+    def rows(self, sql, params=()):
+        with closing(sqlite3.connect(self.database)) as db:
+            return db.execute(sql, params).fetchall()
 
     def check_board(self, result, text):
-        # 旧公告板区段继续逐字验证；新增章程区段由 T06b 契约独立完整验证。
-        result = json.loads(json.dumps(result))
-        value = result["content"][0]["text"]
-        identity, remaining = value.split("\n\n", 1)
-        _, rest = remaining.split("== 各方状态 ==", 1)
-        result["content"][0]["text"] = identity + "\n\n== 各方状态 ==" + rest
         self.check(result, text)
 
     def check(self, result, text, error=False):

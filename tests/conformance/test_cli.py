@@ -12,9 +12,9 @@ class CliTests(ContractCase):
         self.assertEqual(self.cli("status"), "全局开关：已开启\n  （还没有项目）\n")
         self.assertEqual(self.cli("on", cwd=self.directory), f"项目开关：已开启（{shown}）\n")
         self.assertEqual(self.cli("status"), "全局开关：已开启\n"
-                         f"  {shown}：项目开关 已开启，有效状态 未开启，最近活动 -\n协作状态：待初始化\n")
-        self.assertEqual(self.cli("show", cwd=self.directory), f"启用状态：未开启\n协作状态：待初始化\n== AI 开关 ==\n  （还没有 AI）\n项目：{shown}"
-                         "\n你的身份：human\n\n协作状态：待初始化\n\n== 各方状态 ==\n  （还没有人汇报状态）\n\n== 文件认领 =="
+                         f"  {shown}：项目开关 已开启，有效状态 已开启，最近活动 -\n")
+        self.assertEqual(self.cli("show", cwd=self.directory), f"启用状态：已开启\n项目：{shown}"
+                         "\n你的身份：human\n\n== 各方状态 ==\n  （还没有人汇报状态）\n\n== 文件认领 =="
                          "\n  （没有文件被认领）\n\n== 给你的未读消息（0 条）==\n  （没有未读消息）"
                          "\n\n== 最近消息 ==\n  （无）\n")
         self.assertEqual(self.cli("off", ".", cwd=self.directory), off + f"项目开关：未开启（{shown}）\n")
@@ -40,4 +40,4 @@ class CliTests(ContractCase):
         self.assertEqual(len(results), 4)
         state = self.cli("status")
         for index in range(4):
-            self.assertIn(f"{display_path(self.project + f'/project-{index}')}：项目开关 已开启，有效状态 未开启，最近活动 -", state)
+            self.assertIn(f"{display_path(self.project + f'/project-{index}')}：项目开关 已开启，有效状态 已开启，最近活动 -", state)

@@ -105,17 +105,15 @@ class WaitTests(ContractCase):
         self.assertEqual(ids, sorted(set(ids)))
         self.assertFalse(any('自己' in line or '给别人' in line for line in observed))
 
-    def test_three_switches_exit_three_and_missing_database_not_created(self):
+    def test_two_switches_exit_three_and_missing_database_not_created(self):
         result = self.run_wait(self.project, '--agent', 'codex')
         self.assertEqual(result.returncode, 3)
         self.assertIn('项目', result.stdout.decode('utf-8'))
         self.assertFalse(self.database.exists())
         for args, reason in [(('off', self.project), '项目'),
-                             (('off', '--global'), '全局'),
-                             (('agent', self.project, 'codex', 'off'), 'AI')]:
+                             (('off', '--global'), '全局')]:
             self.cli('on', '--global')
             self.cli('on', self.project)
-            self.cli('agent', self.project, 'codex', 'on')
             self.cli(*args)
             before = self.snapshot()
             result = self.run_wait(self.project, '--agent', 'codex')
@@ -123,17 +121,17 @@ class WaitTests(ContractCase):
             self.assertIn(reason, result.stdout.decode('utf-8'))
             self.assertEqual(self.snapshot(), before)
 
-    def test_running_wait_stops_when_agent_disabled(self):
+    def test_running_wait_stops_when_project_disabled(self):
         self.enable()
         p, lines = self.start_wait('--follow', '--timeout', '10')
         self.wake(lines)
-        self.cli('agent', self.project, 'codex', 'off')
+        self.cli('off', self.project)
         self.assertEqual(p.wait(timeout=5), 3)
         self.assertEqual(p.stderr.read(), b'')
         remaining = []
         while not lines.empty():
             remaining.append(lines.get_nowait())
-        self.assertTrue(any('AI' in line and '关闭' in line for line in remaining))
+        self.assertTrue(any('项目' in line and '停止等待' in line for line in remaining))
 
     def test_interval_zero_rejected(self):
         result = self.run_wait(self.project, '--agent', 'codex', '--interval', '0')

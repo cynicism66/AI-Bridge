@@ -1,34 +1,11 @@
-pub mod atomic_file;
-mod collaboration;
-mod documents;
-mod file_batch;
-mod handover;
-pub mod init_draft;
-pub mod initialization;
-pub mod permission_edit;
-mod permissions;
-mod preview;
-pub mod redact;
-mod repo_files;
-mod rules_files;
-pub mod templates;
-pub mod transfer;
-// Bridge 的存储、工具和中文格式化；人用导出/交接的交互由 preview 模块处理。
-mod agent_switch;
-pub mod app_settings;
+// 最小公告板核心：消息、状态、认领、开关、会话和 Stop 钩子。
 mod claims;
 pub mod database;
-pub mod desktop;
-pub mod discovery;
 mod format;
-pub mod history;
-pub mod history_page;
+pub mod hook;
 pub mod human;
-pub mod management;
-mod message_receipts;
 mod messages;
 pub mod paths;
-pub mod project_lifecycle;
 pub mod protocol;
 pub mod repository;
 mod sessions;
@@ -42,9 +19,18 @@ use database::Database;
 
 pub const TIME_FMT: &str = "%Y-%m-%d %H:%M:%S";
 
-/// 只规范化显示，不改变数据库键或文件读写路径。
 pub fn display_path(path: &str) -> String {
-    preview::display_path(std::path::Path::new(path))
+    if path.as_bytes().get(1) == Some(&b':') {
+        format!(
+            "{}{}",
+            path[..1].to_uppercase(),
+            path[1..].replace('/', "\\")
+        )
+    } else if path.starts_with("//") {
+        path.replace('/', "\\")
+    } else {
+        path.into()
+    }
 }
 
 pub fn now() -> Result<String> {
@@ -61,7 +47,6 @@ pub struct Bridge {
     pub agent: String,
     pub session_id: String,
 }
-
 impl Bridge {
     pub fn from_env() -> Result<Self> {
         let agent = std::env::var("BRIDGE_AGENT")
@@ -79,29 +64,7 @@ impl Bridge {
         })
     }
 }
-
 #[cfg(test)]
 mod switch_tests;
 #[cfg(test)]
 mod test_support;
-
-#[cfg(test)]
-mod history_page_tests;
-#[cfg(test)]
-mod management_tests;
-#[cfg(test)]
-mod project_lifecycle_tests;
-#[cfg(test)]
-mod template_tests;
-
-pub mod copy_options;
-#[cfg(test)]
-mod copy_options_tests;
-pub mod record_copy;
-#[cfg(test)]
-mod record_copy_tests;
-mod record_frames;
-
-pub mod actions;
-#[cfg(test)]
-mod actions_tests;

@@ -70,11 +70,15 @@ fn metadata(root: &Path, marker: &Path) -> Result<Project> {
 
 pub fn resolve(input: &str) -> Result<Project> {
     let key = project_on(input, cfg!(windows))?;
-    let fallback = Project {
+    Ok(resolve_git(input)?.unwrap_or_else(|| Project {
         key: key.clone(),
         worktree: key,
         branch: "-".into(),
-    };
+    }))
+}
+/// Stop 钩子只在能识别为 Git 仓库的目录工作；普通 MCP 仍可退回原路径。
+pub fn resolve_git(input: &str) -> Result<Option<Project>> {
+    project_on(input, cfg!(windows))?;
     let input = explicit_project(input.trim(), cfg!(windows))?;
     let start = Path::new(&input);
     // 无须用户安装 Git；失败不影响按原路径使用 Bridge。
@@ -91,17 +95,17 @@ pub fn resolve(input: &str) -> Result<Project> {
             continue;
         };
         match metadata(root, &marker) {
-            Ok(project) => return Ok(project),
+            Ok(project) => return Ok(Some(project)),
             Err(error) => {
                 eprintln!(
                     "Bridge：无法解析 Git 项目，退回原路径：{}",
                     error.to_string().replace(['\r', '\n'], " ")
                 );
-                return Ok(fallback);
+                return Ok(None);
             }
         }
     }
-    Ok(fallback)
+    Ok(None)
 }
 
 #[cfg(test)]

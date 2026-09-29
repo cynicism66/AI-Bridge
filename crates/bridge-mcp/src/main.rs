@@ -1,4 +1,5 @@
 mod cli;
+mod hook;
 mod wait;
 
 use anyhow::Result;
@@ -28,10 +29,9 @@ fn serve(bridge: &Bridge) -> Result<()> {
 }
 
 fn run() -> Result<i32> {
-    let bridge = Bridge::from_env()?;
-    match cli::run(&bridge)? {
+    match cli::run()? {
         cli::Output::Exit(code) => Ok(code),
-        cli::Output::Serve => {
+        cli::Output::Serve(bridge) => {
             serve(&bridge)?;
             Ok(0)
         }

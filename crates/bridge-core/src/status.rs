@@ -1,102 +1,56 @@
 use crate::{database::query, format::text, now, Bridge};
 use anyhow::Result;
-use rusqlite::params;
+use rusqlite::{params, Connection};
 use serde_json::Value;
 
 #[derive(Clone, Copy)]
 pub struct SwitchState {
     pub global_enabled: bool,
     pub project_enabled: bool,
-    pub agent_enabled: bool,
-    pub initialized: bool,
 }
-
 impl SwitchState {
     pub fn enabled(self) -> bool {
-        self.global_enabled && self.project_enabled && self.agent_enabled && self.initialized
+        self.global_enabled && self.project_enabled
     }
 }
-
+pub(crate) fn state_in(conn: &Connection, project: Option<&str>) -> Result<SwitchState> {
+    let mut state = SwitchState {
+        global_enabled: true,
+        project_enabled: false,
+    };
+    if query(
+        conn,
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='settings'",
+        [],
+    )?
+    .is_empty()
+    {
+        return Ok(state);
+    }
+    for row in query(
+        conn,
+        "SELECT scope, enabled FROM settings WHERE scope IN (?, ?)",
+        params!["global", project.unwrap_or("global")],
+    )? {
+        let enabled = row["enabled"].as_i64().unwrap_or(0) != 0;
+        if text(&row, "scope") == "global" {
+            state.global_enabled = enabled;
+        } else {
+            state.project_enabled = enabled;
+        }
+    }
+    Ok(state)
+}
 impl Bridge {
     pub fn switch_state(&self, project: Option<&str>) -> Result<SwitchState> {
-        self.access_state(project, None)
+        if !self.database.path.is_file() {
+            return Ok(SwitchState {
+                global_enabled: true,
+                project_enabled: false,
+            });
+        }
+        state_in(&self.database.read_only()?, project)
     }
-
-    pub fn access_state(&self, project: Option<&str>, agent: Option<&str>) -> Result<SwitchState> {
-        let mut state = SwitchState {
-            global_enabled: true,
-            project_enabled: false,
-            agent_enabled: true,
-            initialized: false,
-        };
-        if self.database.path.is_file() {
-            let conn = self.database.read_only()?;
-            if !query(
-                &conn,
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='settings'",
-                [],
-            )?
-            .is_empty()
-            {
-                let rows = query(
-                    &conn,
-                    "SELECT scope, enabled FROM settings WHERE scope IN (?, ?)",
-                    params!["global", project.unwrap_or("global")],
-                )?;
-                for row in rows {
-                    let enabled = row["enabled"].as_i64().unwrap_or(0) != 0;
-                    if text(&row, "scope") == "global" {
-                        state.global_enabled = enabled;
-                    } else {
-                        state.project_enabled = enabled;
-                    }
-                }
-            }
-        }
-        if let (Some(project), Some(agent)) = (project, agent) {
-            if self.database.path.is_file() {
-                let conn = self.database.read_only()?;
-                if !query(
-                    &conn,
-                    "SELECT 1 FROM sqlite_master WHERE name='agent_settings'",
-                    [],
-                )?
-                .is_empty()
-                {
-                    if let Some(row) = query(
-                        &conn,
-                        "SELECT enabled FROM agent_settings WHERE project=? AND agent=?",
-                        params![project, agent],
-                    )?
-                    .first()
-                    {
-                        state.agent_enabled = row["enabled"].as_i64() != Some(0);
-                    }
-                }
-            }
-        }
-        if let Some(project) = project {
-            if self.database.path.is_file() {
-                let conn = self.database.read_only()?;
-                if !query(
-                    &conn,
-                    "SELECT 1 FROM sqlite_master WHERE name='project_init'",
-                    [],
-                )?
-                .is_empty()
-                {
-                    state.initialized = !query(
-                        &conn,
-                        "SELECT 1 FROM project_init WHERE project=?",
-                        [project],
-                    )?
-                    .is_empty();
-                }
-            }
-        }
-        Ok(state)
-    }
-
     pub fn set_enabled(&self, enabled: bool, project: Option<&str>) -> Result<()> {
         self.database.open()?.execute(
             "INSERT OR REPLACE INTO settings VALUES (?, ?)",
@@ -104,12 +58,7 @@ impl Bridge {
         )?;
         Ok(())
     }
-
     pub fn projects(&self) -> Result<Vec<Value>> {
-        self.projects_for(None)
-    }
-
-    pub(crate) fn projects_for(&self, agent: Option<&str>) -> Result<Vec<Value>> {
         let conn = self.database.open()?;
         let mut rows = query(
             &conn,
@@ -117,23 +66,19 @@ impl Bridge {
             SELECT project, updated_at AS t FROM status
             UNION ALL SELECT project, created_at FROM messages
             UNION ALL SELECT project, claimed_at FROM claims
-            UNION ALL SELECT scope, NULL FROM settings WHERE scope != 'global'
-            UNION ALL SELECT project, NULL FROM agent_settings) AS candidates
-            WHERE NOT EXISTS (SELECT 1 FROM agent_settings a WHERE a.project=candidates.project AND a.agent=? AND a.enabled=0)
+            UNION ALL SELECT scope, NULL FROM settings WHERE scope != 'global')
             GROUP BY project ORDER BY last DESC",
-            [agent],
+            [],
         )?;
         let settings = query(&conn, "SELECT scope, enabled FROM settings", [])?;
         for row in &mut rows {
-            let enabled = settings
-                .iter()
-                .find(|s| s["scope"] == row["project"])
-                .is_some_and(|s| s["enabled"].as_i64().unwrap_or(0) != 0);
-            row["enabled"] = Value::Bool(enabled);
+            row["enabled"] =
+                Value::Bool(settings.iter().any(|s| {
+                    s["scope"] == row["project"] && s["enabled"].as_i64().unwrap_or(0) != 0
+                }));
         }
         Ok(rows)
     }
-
     pub(crate) fn update(&self, project: &str, args: &Value) -> Result<String> {
         let mut conn = self.database.open()?;
         let transaction = conn.transaction()?;
